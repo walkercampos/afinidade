@@ -21,12 +21,15 @@ CREATE TABLE IF NOT EXISTS tags (
 
 -- Conta = credenciais. Sem e-mail, telefone ou nome civil: o handle é pseudônimo.
 -- A data de nascimento é verificada no cadastro e NÃO é persistida; guardamos só quando
--- a maioridade foi confirmada.
+-- a maioridade e o consentimento (LGPD art. 11) foram dados.
+-- token_versao: incrementar invalida todos os tokens emitidos (sair de todos os dispositivos).
 CREATE TABLE IF NOT EXISTS contas (
     id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     handle               text NOT NULL UNIQUE CHECK (handle ~ '^[a-z0-9_]{3,30}$'),
     senha_hash           text NOT NULL,
     adulto_confirmado_em timestamptz NOT NULL,
+    consentimento_em     timestamptz NOT NULL,
+    token_versao         integer NOT NULL DEFAULT 0,
     criado_em            timestamptz NOT NULL DEFAULT now()
 );
 

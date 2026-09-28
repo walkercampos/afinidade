@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, Response, status
+from fastapi.staticfiles import StaticFiles
 
 from . import repository as repo
 from .config import carregar_config
@@ -11,19 +13,54 @@ from .schemas import (
     Candidato, Compatibilidade, ItemCatalogo, Login, PerfilEntrada, PerfilProprio, PerfilPublico,
     Registro, ResultadoCurtida, Simulacao, TagsInteresses, Token,
 )
-from .security import conta_atual, emitir_token, gerar_hash_senha, verificar_senha
+from .ratelimit import exigir_limite, ip_do_cliente
+from .security import (
+    HASH_FALSO, apagar_cookie_sessao, conta_atual, emitir_token, gerar_hash_senha, gravar_cookie_sessao,
+    verificar_senha,
+)
+
+DIR_STATIC = Path(__file__).resolve().parent.parent / "static"
+CONFIG = carregar_config()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.config = carregar_config()
-    app.state.pool = await criar_pool(app.state.config.database_url)
+    app.state.config = CONFIG
+    app.state.pool = await criar_pool(CONFIG.database_url)
     await aplicar_schema(app.state.pool)
     yield
     await app.state.pool.close()
 
 
-app = FastAPI(title="Matchmaking API", version="0.1.0", lifespan=lifespan)
+# Em produção a documentação interativa fica desligada: menos superfície exposta.
+_docs = {} if not CONFIG.producao else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+app = FastAPI(title="Matchmaking API", version="0.2.0", lifespan=lifespan, **_docs)
+api = APIRouter(prefix="/api")
+
+_CSP = (
+    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; "
+    "font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+)
+
+
+@app.middleware("http")
+async def cabecalhos_de_seguranca(request: Request, call_next):
+    response = await call_next(request)
+    h = response.headers
+    # /docs (só em dev) carrega Swagger de CDN e não funcionaria com a CSP estrita.
+    if not request.url.path.startswith(("/docs", "/redoc")):
+        h["Content-Security-Policy"] = _CSP
+    h["X-Content-Type-Options"] = "nosniff"
+    h["X-Frame-Options"] = "DENY"
+    h["Referrer-Policy"] = "no-referrer"
+    h["Permissions-Policy"] = "geolocation=(), camera=(), microphone=(), payment=(), interest-cohort=()"
+    h["Cross-Origin-Opener-Policy"] = "same-origin"
+    h["Cross-Origin-Resource-Policy"] = "same-origin"
+    if request.url.path.startswith("/api"):
+        h["Cache-Control"] = "no-store"
+    if CONFIG.producao:
+        h["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+    return response
 
 
 # ---------- helpers ----------
@@ -77,51 +114,68 @@ async def _perfil_alvo(con, eu: UUID, alvo: UUID):
 
 # ---------- autenticação ----------
 
-@app.post("/auth/registro", response_model=Token, status_code=status.HTTP_201_CREATED)
-async def registrar(dados: Registro, con=Depends(conexao)):
+def _iniciar_sessao(response: Response, conta_id: UUID, versao: int) -> Token:
+    token = emitir_token(conta_id, versao, CONFIG.jwt_secret, CONFIG.jwt_expira_min)
+    gravar_cookie_sessao(response, token, CONFIG)
+    return Token(access_token=token)
+
+
+@api.post("/auth/registro", response_model=Token, status_code=status.HTTP_201_CREATED)
+async def registrar(dados: Registro, request: Request, response: Response, con=Depends(conexao)):
+    exigir_limite("auth", CONFIG.limite_auth_por_min, ip_do_cliente(request))
     conta_id = await repo.criar_conta(con, dados.handle, gerar_hash_senha(dados.senha))
     if conta_id is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Handle já em uso")
-    cfg = app.state.config
-    return Token(access_token=emitir_token(conta_id, cfg.jwt_secret, cfg.jwt_expira_min))
+    return _iniciar_sessao(response, conta_id, 0)
 
 
-@app.post("/auth/login", response_model=Token)
-async def login(dados: Login, con=Depends(conexao)):
+@api.post("/auth/login", response_model=Token)
+async def login(dados: Login, request: Request, response: Response, con=Depends(conexao)):
+    exigir_limite("auth", CONFIG.limite_auth_por_min, ip_do_cliente(request))
+    # Também por handle: impede força bruta distribuída em vários IPs contra uma conta.
+    exigir_limite("login-handle", CONFIG.limite_auth_por_min, dados.handle)
     conta = await repo.buscar_conta_por_handle(con, dados.handle)
-    if conta is None or not verificar_senha(dados.senha, conta["senha_hash"]):
+    senha_ok = verificar_senha(dados.senha, conta["senha_hash"] if conta else HASH_FALSO)
+    if conta is None or not senha_ok:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciais inválidas")
-    cfg = app.state.config
-    return Token(access_token=emitir_token(conta["id"], cfg.jwt_secret, cfg.jwt_expira_min))
+    return _iniciar_sessao(response, conta["id"], conta["token_versao"])
 
 
-@app.delete("/conta", status_code=status.HTTP_204_NO_CONTENT)
-async def excluir_conta(eu: UUID = Depends(conta_atual), con=Depends(conexao)):
+@api.post("/auth/sair", status_code=status.HTTP_204_NO_CONTENT)
+async def sair(response: Response, eu: UUID = Depends(conta_atual), con=Depends(conexao)):
+    """Encerra a sessão em todos os dispositivos."""
+    await repo.invalidar_sessoes(con, eu)
+    apagar_cookie_sessao(response, CONFIG)
+
+
+@api.delete("/conta", status_code=status.HTTP_204_NO_CONTENT)
+async def excluir_conta(response: Response, eu: UUID = Depends(conta_atual), con=Depends(conexao)):
     await repo.excluir_conta(con, eu)
+    apagar_cookie_sessao(response, CONFIG)
 
 
 # ---------- catálogo ----------
 
-@app.get("/catalogo/generos", response_model=list[ItemCatalogo])
+@api.get("/catalogo/generos", response_model=list[ItemCatalogo])
 async def catalogo_generos(con=Depends(conexao)):
     return [dict(l) for l in await repo.listar_catalogo(con, "generos")]
 
 
-@app.get("/catalogo/tags", response_model=list[ItemCatalogo])
+@api.get("/catalogo/tags", response_model=list[ItemCatalogo])
 async def catalogo_tags(con=Depends(conexao)):
     return [dict(l) for l in await repo.listar_catalogo(con, "tags")]
 
 
 # ---------- perfil próprio ----------
 
-@app.put("/perfil", response_model=PerfilProprio)
+@api.put("/perfil", response_model=PerfilProprio)
 async def salvar_perfil(dados: PerfilEntrada, eu: UUID = Depends(conta_atual), con=Depends(conexao)):
     t = dados.tags_interesses
     try:
         generos = await repo.ids_por_slug(con, "generos", [dados.genero, *dados.busca_por])
         tags = await repo.ids_por_slug(con, "tags", [*t.quero, *t.curioso, *t.limite_absoluto])
     except repo.SlugDesconhecido as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e))
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e))
     await repo.salvar_perfil(
         con, eu, nome_exibicao=dados.nome_exibicao, bio=dados.bio, visivel=dados.visivel,
         genero_id=generos[dados.genero], busca_por=sorted({generos[g] for g in dados.busca_por}),
@@ -131,7 +185,7 @@ async def salvar_perfil(dados: PerfilEntrada, eu: UUID = Depends(conta_atual), c
     return await ler_perfil(eu, con)
 
 
-@app.get("/perfil", response_model=PerfilProprio)
+@api.get("/perfil", response_model=PerfilProprio)
 async def ler_perfil(eu: UUID = Depends(conta_atual), con=Depends(conexao)):
     p = await repo.buscar_perfil(con, eu)
     if p is None:
@@ -149,11 +203,11 @@ async def ler_perfil(eu: UUID = Depends(conta_atual), con=Depends(conexao)):
 
 # ---------- descoberta e conexões ----------
 
-@app.get("/descobrir", response_model=list[Candidato])
+@api.get("/descobrir", response_model=list[Candidato])
 async def descobrir(limite: int = Query(20, ge=1, le=100), eu: UUID = Depends(conta_atual), con=Depends(conexao)):
     meu = await _meu_perfil(con, eu)
     await repo.marcar_atividade(con, eu)
-    linhas = await repo.buscar_candidatos(con, meu, app.state.config.candidatos_prefetch)
+    linhas = await repo.buscar_candidatos(con, meu, CONFIG.candidatos_prefetch)
 
     eu_match = repo.para_perfil_match(meu)
     pontuados = []
@@ -173,7 +227,7 @@ async def descobrir(limite: int = Query(20, ge=1, le=100), eu: UUID = Depends(co
     ]
 
 
-@app.get("/perfis/{alvo}", response_model=Candidato)
+@api.get("/perfis/{alvo}", response_model=Candidato)
 async def ver_perfil(alvo: UUID, eu: UUID = Depends(conta_atual), con=Depends(conexao)):
     meu = await _meu_perfil(con, eu)
     outro = await _perfil_alvo(con, eu, alvo)
@@ -184,7 +238,7 @@ async def ver_perfil(alvo: UUID, eu: UUID = Depends(conta_atual), con=Depends(co
     )
 
 
-@app.post("/perfis/{alvo}/curtir", response_model=ResultadoCurtida)
+@api.post("/perfis/{alvo}/curtir", response_model=ResultadoCurtida)
 async def curtir(alvo: UUID, eu: UUID = Depends(conta_atual), con=Depends(conexao)):
     meu = await _meu_perfil(con, eu)
     outro = await _perfil_alvo(con, eu, alvo)
@@ -196,7 +250,7 @@ async def curtir(alvo: UUID, eu: UUID = Depends(conta_atual), con=Depends(conexa
     return ResultadoCurtida(conexao=await repo.curtir(con, eu, alvo))
 
 
-@app.post("/perfis/{alvo}/bloquear", status_code=status.HTTP_204_NO_CONTENT)
+@api.post("/perfis/{alvo}/bloquear", status_code=status.HTTP_204_NO_CONTENT)
 async def bloquear(alvo: UUID, eu: UUID = Depends(conta_atual), con=Depends(conexao)):
     if alvo == eu:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Operação inválida sobre o próprio perfil")
@@ -205,7 +259,7 @@ async def bloquear(alvo: UUID, eu: UUID = Depends(conta_atual), con=Depends(cone
     await repo.bloquear(con, eu, alvo)
 
 
-@app.get("/conexoes", response_model=list[PerfilPublico])
+@api.get("/conexoes", response_model=list[PerfilPublico])
 async def conexoes(eu: UUID = Depends(conta_atual), con=Depends(conexao)):
     linhas = await repo.listar_conexoes(con, eu)
     cat = await _Catalogo.para(con, linhas)
@@ -214,9 +268,14 @@ async def conexoes(eu: UUID = Depends(conta_atual), con=Depends(conexao)):
 
 # ---------- utilitário ----------
 
-@app.post("/match/simular")
+@api.post("/match/simular")
 async def simular(dados: Simulacao):
     """Roda o algoritmo sobre dois payloads no formato do script original (sem banco)."""
     a = PerfilMatch.de_dict(dados.usuario_a.model_dump())
     b = PerfilMatch.de_dict(dados.usuario_b.model_dump())
     return {**calcular_match(a, b).to_dict(), "score_mutuo": score_mutuo(a, b)}
+
+
+app.include_router(api)
+# Front-end estático no mesmo domínio: sem CORS, e o cookie SameSite=Strict funciona.
+app.mount("/", StaticFiles(directory=DIR_STATIC, html=True), name="static")

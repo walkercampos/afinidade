@@ -1,8 +1,9 @@
-fastapi==0.115.0
+fastapi==0.141.1
+starlette==1.7.0
 uvicorn[standard]==0.54.0
 asyncpg==0.31.0
 pydantic==2.13.5
-PyJWT==2.7.0
+PyJWT==2.15.0
 
 # testes
 pytest==9.1.1

@@ -16,20 +16,23 @@ class Registro(BaseModel):
     senha: str = Field(min_length=10, max_length=128)
     data_nascimento: date
     confirmo_maior_de_idade: bool
+    consinto_dados_sensiveis: bool
 
     @model_validator(mode="after")
-    def exigir_maioridade(self):
+    def exigir_maioridade_e_consentimento(self):
         hoje = date.today()
         n = self.data_nascimento
         idade = hoje.year - n.year - ((hoje.month, hoje.day) < (n.month, n.day))
         if idade < IDADE_MINIMA or not self.confirmo_maior_de_idade:
             raise ValueError("A plataforma é exclusiva para maiores de 18 anos")
+        if not self.consinto_dados_sensiveis:
+            raise ValueError("É necessário consentir com o tratamento de dados sensíveis")
         return self
 
 
 class Login(BaseModel):
     handle: Handle
-    senha: str
+    senha: str = Field(max_length=128)
 
 
 class Token(BaseModel):

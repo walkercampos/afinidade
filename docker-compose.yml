@@ -16,6 +16,8 @@ services:
     build: .
     env_file: .env
     environment:
+      # Sem HTTPS local: cookie sem flag Secure. Em produção deixe o padrão (producao).
+      AMBIENTE: dev
       DATABASE_URL: postgresql://matchmaking:matchmaking@db:5432/matchmaking
     ports:
       - "8000:8000"

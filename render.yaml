@@ -1,0 +1,15 @@
+# Deploy gratuito no Render (Blueprint). O banco fica no Neon (plano gratuito):
+# crie o projeto em neon.tech e cole a connection string em DATABASE_URL no painel do Render.
+services:
+  - type: web
+    name: matchmaking
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/catalogo/generos
+    envVars:
+      - key: AMBIENTE
+        value: producao
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false

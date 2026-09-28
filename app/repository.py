@@ -49,7 +49,8 @@ def para_perfil_match(linha) -> PerfilMatch:
 async def criar_conta(con, handle: str, senha_hash: str) -> UUID | None:
     try:
         return await con.fetchval(
-            "INSERT INTO contas (handle, senha_hash, adulto_confirmado_em) VALUES ($1, $2, now()) RETURNING id",
+            "INSERT INTO contas (handle, senha_hash, adulto_confirmado_em, consentimento_em)"
+            " VALUES ($1, $2, now(), now()) RETURNING id",
             handle, senha_hash,
         )
     except asyncpg.UniqueViolationError:
@@ -57,7 +58,11 @@ async def criar_conta(con, handle: str, senha_hash: str) -> UUID | None:
 
 
 async def buscar_conta_por_handle(con, handle: str):
-    return await con.fetchrow("SELECT id, senha_hash FROM contas WHERE handle = $1", handle)
+    return await con.fetchrow("SELECT id, senha_hash, token_versao FROM contas WHERE handle = $1", handle)
+
+
+async def invalidar_sessoes(con, conta_id: UUID) -> None:
+    await con.execute("UPDATE contas SET token_versao = token_versao + 1 WHERE id = $1", conta_id)
 
 
 async def excluir_conta(con, conta_id: UUID) -> None:
