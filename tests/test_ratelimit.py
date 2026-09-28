@@ -16,3 +16,13 @@ def test_nao_guarda_o_identificador_em_claro():
     lim = Limitador()
     lim.permitir("auth", "203.0.113.9", 5)
     assert not any("203.0.113.9" in k[1] for k in lim._contagens)
+
+
+def test_janelas_de_tamanhos_diferentes_sao_independentes():
+    agora = [0.0]
+    lim = Limitador(relogio=lambda: agora[0])
+    assert lim.permitir("dia", "x", 1, janela_s=86_400, anonimizar=False)
+    assert not lim.permitir("dia", "x", 1, janela_s=86_400, anonimizar=False)
+    agora[0] += 7200  # depois da rotação do sal, a janela de um dia continua fechada
+    assert not lim.permitir("dia", "x", 1, janela_s=86_400, anonimizar=False)
+    assert lim.permitir("min", "x", 1)

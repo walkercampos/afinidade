@@ -3,6 +3,7 @@
 Os perfis usam conjuntos (frozenset) para que as operações de interseção sejam O(min(n, m)).
 Os elementos podem ser slugs (str) ou IDs numéricos do catálogo (int) — o algoritmo não se importa.
 """
+import math
 from dataclasses import dataclass, field
 from typing import Hashable, Iterable
 
@@ -87,10 +88,19 @@ def calcular_match(a: PerfilMatch, b: PerfilMatch) -> ResultadoMatch:
 
     # Cenário ideal: B atende perfeitamente a todos os desejos de A
     max_possivel = len(a.quero) * PESO_QUERO_MUTUO + len(a.curioso) * PESO_CURIOSO_MUTUO
-    percentual = 0 if max_possivel == 0 else min(100, round(score / max_possivel * 100))
+    percentual = 0 if max_possivel == 0 else min(100, _porcentagem(score, max_possivel))
 
     tags_comuns = tuple(mutual_quero | quero_a_curioso_b | quero_b_curioso_a)
     return ResultadoMatch(True, percentual, MOTIVO_OK, tags_comuns)
+
+
+def _porcentagem(parte: int, total: int) -> int:
+    """round(parte / total * 100) com arredondamento "meio para cima" em aritmética inteira.
+
+    O round() do Python arredonda 12,5 para 12 (meio para o par) e o do Postgres para 13;
+    esta forma dá o mesmo resultado nos dois lados (ver descoberta.py).
+    """
+    return (parte * 200 + total) // (2 * total)
 
 
 def score_mutuo(a: PerfilMatch, b: PerfilMatch) -> int:
@@ -104,4 +114,39 @@ def score_mutuo(a: PerfilMatch, b: PerfilMatch) -> int:
     if not ab.match_valido:
         return 0
     ba = calcular_match(b, a)
-    return round((ab.score_porcentagem + ba.score_porcentagem) / 2)
+    return (ab.score_porcentagem + ba.score_porcentagem + 1) // 2
+
+
+# ---------- pessoas com as mesmas preferências ----------
+
+VALOR_QUERO = 2    # escala x2 para manter a conta em inteiros (quero = 1,0 ; curioso = 0,5)
+VALOR_CURIOSO = 1
+
+
+def similaridade(a: PerfilMatch, b: PerfilMatch) -> int:
+    """Quão parecidos são os GOSTOS de A e B, de 0 a 100 (similaridade de cosseno).
+
+    Diferente da compatibilidade (que mede se B satisfaz os desejos de A), aqui cada pessoa
+    vira um vetor sobre o catálogo de tags — quero = 1, curioso = 0,5 — e medimos o ângulo
+    entre os vetores. É simétrica e penaliza quem tem muitos interesses que o outro não tem:
+    100 = exatamente as mesmas tags nos mesmos níveis.
+
+    Limites absolutos ficam de fora de propósito: se entrassem, alguém poderia montar um
+    perfil de teste e descobrir os limites de outra pessoa pela variação da similaridade.
+    """
+    q, c = VALOR_QUERO, VALOR_CURIOSO
+    produto = (
+        len(a.quero & b.quero) * q * q
+        + len(a.curioso & b.curioso) * c * c
+        + (len(a.quero & b.curioso) + len(a.curioso & b.quero)) * q * c
+    )
+    norma_a = len(a.quero) * q * q + len(a.curioso) * c * c
+    norma_b = len(b.quero) * q * q + len(b.curioso) * c * c
+    if produto == 0:
+        return 0
+    return math.floor(100 * produto / math.sqrt(norma_a * norma_b) + 0.5)
+
+
+def tags_mesmo_nivel(a: PerfilMatch, b: PerfilMatch) -> frozenset:
+    """Tags que os dois marcaram no mesmo nível (ambos querem ou ambos têm curiosidade)."""
+    return (a.quero & b.quero) | (a.curioso & b.curioso)

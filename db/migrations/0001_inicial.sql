@@ -1,4 +1,4 @@
--- Schema do matchmaking (PostgreSQL 13+; gen_random_uuid() é nativo).
+-- 0001: schema inicial (PostgreSQL 13+; gen_random_uuid() é nativo).
 --
 -- Decisão central: as tags de cada perfil ficam em arrays de inteiros (IDs do catálogo),
 -- uma coluna por nível. Isso permite que as camadas 1 e 2 do algoritmo (gênero e

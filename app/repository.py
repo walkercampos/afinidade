@@ -46,6 +46,10 @@ def para_perfil_match(linha) -> PerfilMatch:
 
 # ---------- contas ----------
 
+async def existe_conta(con, conta_id: UUID) -> bool:
+    return await con.fetchval("SELECT EXISTS (SELECT 1 FROM contas WHERE id = $1)", conta_id)
+
+
 async def criar_conta(con, handle: str, senha_hash: str) -> UUID | None:
     try:
         return await con.fetchval(
@@ -58,7 +62,7 @@ async def criar_conta(con, handle: str, senha_hash: str) -> UUID | None:
 
 
 async def buscar_conta_por_handle(con, handle: str):
-    return await con.fetchrow("SELECT id, senha_hash, token_versao FROM contas WHERE handle = $1", handle)
+    return await con.fetchrow("SELECT id, senha_hash, token_versao, situacao FROM contas WHERE handle = $1", handle)
 
 
 async def invalidar_sessoes(con, conta_id: UUID) -> None:
@@ -107,37 +111,20 @@ _SEM_BLOQUEIO = """
 
 
 async def buscar_perfil_visivel(con, observador: UUID, alvo: UUID):
-    """Perfil de `alvo`, se estiver visível e não houver bloqueio em nenhuma direção."""
+    """Perfil de `alvo`, se estiver visível, com conta ativa e sem bloqueio em nenhuma direção."""
     return await con.fetchrow(
-        f"SELECT p.* FROM perfis p WHERE p.conta_id = $2 AND p.visivel AND {_SEM_BLOQUEIO}",
+        f"""SELECT p.* FROM perfis p JOIN contas ct ON ct.id = p.conta_id AND ct.situacao = 'ativa'
+            WHERE p.conta_id = $2 AND p.visivel AND {_SEM_BLOQUEIO}""",
         observador, alvo,
     )
 
 
-async def buscar_candidatos(con, eu, limite: int):
-    """Camadas 1 e 2 do algoritmo executadas no banco (com índices GIN).
-
-    Retorna apenas perfis que:
-      - têm um gênero que eu busco, e buscam o meu gênero;
-      - não QUEREM nada que seja limite meu, e não têm limite em nada que eu QUERO;
-      - não estão bloqueados (em nenhuma direção) nem já foram curtidos por mim.
-    """
-    return await con.fetch(
-        f"""
-        SELECT p.* FROM perfis p
-        WHERE p.visivel
-          AND p.conta_id <> $1
-          AND p.genero_id = ANY($2::smallint[])
-          AND p.busca_por @> ARRAY[$3::smallint]
-          AND NOT (p.tags_quero && $4::integer[])
-          AND NOT (p.tags_limite && $5::integer[])
-          AND {_SEM_BLOQUEIO}
-          AND NOT EXISTS (SELECT 1 FROM curtidas c WHERE c.de_id = $1 AND c.para_id = p.conta_id)
-        ORDER BY p.ativo_em DESC
-        LIMIT $6
-        """,
-        eu["conta_id"], eu["busca_por"], eu["genero_id"], eu["tags_limite"], eu["tags_quero"], limite,
+async def salvar_localizacao(con, conta_id: UUID, geohash, lat, lon, distancia_max_km) -> bool:
+    status = await con.execute(
+        "UPDATE perfis SET geohash = $2, lat_aprox = $3, lon_aprox = $4, distancia_max_km = $5 WHERE conta_id = $1",
+        conta_id, geohash, lat, lon, distancia_max_km,
     )
+    return status != "UPDATE 0"
 
 
 # ---------- interações ----------
@@ -154,13 +141,30 @@ async def curtir(con, de: UUID, para: UUID) -> bool:
 
 
 async def bloquear(con, de: UUID, para: UUID) -> None:
+    """Bloqueio apaga tudo o que ligava as duas pessoas: conexão, conversa e acesso a fotos."""
     async with con.transaction():
         await con.execute(
             "INSERT INTO bloqueios (bloqueador_id, bloqueado_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", de, para
         )
-        await con.execute(
-            "DELETE FROM curtidas WHERE (de_id = $1 AND para_id = $2) OR (de_id = $2 AND para_id = $1)", de, para
-        )
+        for tabela, a, b in (("curtidas", "de_id", "para_id"), ("mensagens", "de_id", "para_id"),
+                             ("acessos_fotos", "dono_id", "visualizador_id")):
+            await con.execute(
+                f"DELETE FROM {tabela} WHERE ({a} = $1 AND {b} = $2) OR ({a} = $2 AND {b} = $1)", de, para
+            )
+
+
+async def sao_conexao(con, a: UUID, b: UUID) -> bool:
+    """Curtida recíproca, sem bloqueio, e as duas contas ativas."""
+    return await con.fetchval(
+        """SELECT EXISTS (
+               SELECT 1 FROM curtidas x JOIN curtidas y ON y.de_id = x.para_id AND y.para_id = x.de_id
+               JOIN contas ca ON ca.id = x.de_id AND ca.situacao = 'ativa'
+               JOIN contas cb ON cb.id = x.para_id AND cb.situacao = 'ativa'
+               WHERE x.de_id = $1 AND x.para_id = $2
+                 AND NOT EXISTS (SELECT 1 FROM bloqueios b WHERE (b.bloqueador_id = $1 AND b.bloqueado_id = $2)
+                                                            OR (b.bloqueador_id = $2 AND b.bloqueado_id = $1)))""",
+        a, b,
+    )
 
 
 async def listar_conexoes(con, eu: UUID):
@@ -169,6 +173,7 @@ async def listar_conexoes(con, eu: UUID):
         SELECT p.* FROM curtidas minha
         JOIN curtidas deles ON deles.de_id = minha.para_id AND deles.para_id = minha.de_id
         JOIN perfis p ON p.conta_id = minha.para_id
+        JOIN contas ct ON ct.id = p.conta_id AND ct.situacao = 'ativa'
         WHERE minha.de_id = $1 AND {_SEM_BLOQUEIO}
         ORDER BY GREATEST(minha.criado_em, deles.criado_em) DESC
         """,
