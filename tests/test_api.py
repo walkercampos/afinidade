@@ -1,0 +1,124 @@
+"""Testes de ponta a ponta contra um PostgreSQL real.
+
+    TEST_DATABASE_URL=postgresql://postgres@localhost:5432/matchmaking_test pytest
+
+ATENÇÃO: o banco apontado é esvaziado a cada execução.
+"""
+import os
+
+import asyncpg
+import pytest
+from fastapi.testclient import TestClient
+
+URL = os.environ.get("TEST_DATABASE_URL")
+pytestmark = pytest.mark.skipif(not URL, reason="TEST_DATABASE_URL não definido")
+
+
+@pytest.fixture(scope="module")
+def client():
+    import asyncio
+
+    async def limpar():
+        con = await asyncpg.connect(URL)
+        await con.execute("DROP TABLE IF EXISTS curtidas, bloqueios, perfis, contas, tags, generos CASCADE")
+        await con.close()
+
+    asyncio.run(limpar())
+    os.environ["DATABASE_URL"] = URL
+    os.environ["JWT_SECRET"] = "x" * 32
+    from app.main import app
+    with TestClient(app) as c:
+        yield c
+
+
+def registrar(client, handle, genero, busca_por, quero=(), curioso=(), limite=()):
+    r = client.post("/auth/registro", json={
+        "handle": handle, "senha": "senha-forte-123", "data_nascimento": "1990-05-01",
+        "confirmo_maior_de_idade": True,
+    })
+    assert r.status_code == 201, r.text
+    h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    r = client.put("/perfil", headers=h, json={
+        "nome_exibicao": handle.title(), "genero": genero, "busca_por": busca_por,
+        "tags_interesses": {"quero": list(quero), "curioso": list(curioso), "limite_absoluto": list(limite)},
+    })
+    assert r.status_code == 200, r.text
+    return h, r.json()["id"]
+
+
+def test_fluxo_completo(client):
+    alfa, _ = registrar(client, "alfa", "homem-cis", ["mulher-cis", "mulher-trans"],
+                        quero=["bondage", "leather", "dirty-talk"], curioso=["impact-play", "voyeurism"],
+                        limite=["ageplay", "urophilia"])
+    beta, beta_id = registrar(client, "beta", "mulher-cis", ["homem-cis"],
+                              quero=["bondage", "dirty-talk", "impact-play"], curioso=["leather"],
+                              limite=["urophilia"])
+    # Busca outro gênero -> fora pela camada 1
+    registrar(client, "gama", "mulher-cis", ["mulher-cis"], quero=["bondage"])
+    # Quer algo que é limite de alfa -> fora pela camada 2
+    registrar(client, "delta", "mulher-trans", ["homem-cis"], quero=["bondage", "urophilia"])
+    # Compatível, mas com afinidade menor
+    _, eps_id = registrar(client, "epsilon", "mulher-trans", ["homem-cis", "mulher-cis"], curioso=["bondage"])
+
+    feed = client.get("/descobrir", headers=alfa).json()
+    assert [c["perfil"]["id"] for c in feed] == [beta_id, eps_id]
+    top = feed[0]["compatibilidade"]
+    assert top["score_porcentagem"] == 91
+    assert top["tags_em_comum"] == ["bondage", "dirty-talk", "impact-play", "leather"]
+    assert "limite_absoluto" not in feed[0]["perfil"]
+
+    # Curtida recíproca vira conexão
+    assert client.post(f"/perfis/{beta_id}/curtir", headers=alfa).json() == {"conexao": False}
+    alfa_id = client.get("/perfil", headers=alfa).json()["id"]
+    assert client.post(f"/perfis/{alfa_id}/curtir", headers=beta).json() == {"conexao": True}
+    assert [p["id"] for p in client.get("/conexoes", headers=alfa).json()] == [beta_id]
+    # Quem já foi curtido sai do feed
+    assert [c["perfil"]["id"] for c in client.get("/descobrir", headers=alfa).json()] == [eps_id]
+
+    # Bloqueio desfaz a conexão e esconde o perfil nas duas direções
+    assert client.post(f"/perfis/{alfa_id}/bloquear", headers=beta).status_code == 204
+    assert client.get("/conexoes", headers=alfa).json() == []
+    assert client.get(f"/perfis/{beta_id}", headers=alfa).status_code == 404
+    assert client.get(f"/perfis/{alfa_id}", headers=beta).status_code == 404
+
+
+def test_nao_pode_curtir_quem_nao_passa_nos_filtros(client):
+    h, _ = registrar(client, "zeta", "homem-cis", ["mulher-cis"], quero=["urophilia"])
+    alvo = client.post("/auth/login", json={"handle": "alfa", "senha": "senha-forte-123"}).json()
+    alvo_id = client.get("/perfil", headers={"Authorization": f"Bearer {alvo['access_token']}"}).json()["id"]
+    r = client.post(f"/perfis/{alvo_id}/curtir", headers=h)
+    assert r.status_code == 403
+
+
+def test_validacoes(client):
+    menor = client.post("/auth/registro", json={
+        "handle": "teen", "senha": "senha-forte-123", "data_nascimento": "2015-01-01",
+        "confirmo_maior_de_idade": True,
+    })
+    assert menor.status_code == 422
+
+    h, _ = registrar(client, "eta", "agenero", ["agenero"])
+    mesmo_nivel = client.put("/perfil", headers=h, json={
+        "nome_exibicao": "Eta", "genero": "agenero", "busca_por": ["agenero"],
+        "tags_interesses": {"quero": ["bondage"], "limite_absoluto": ["bondage"]},
+    })
+    assert mesmo_nivel.status_code == 422
+    inexistente = client.put("/perfil", headers=h, json={
+        "nome_exibicao": "Eta", "genero": "agenero", "busca_por": ["agenero"],
+        "tags_interesses": {"quero": ["nao-existe"]},
+    })
+    assert inexistente.status_code == 422
+    assert client.get("/descobrir").status_code == 401
+
+
+def test_excluir_conta_remove_tudo(client):
+    h, _ = registrar(client, "theta", "outro", ["outro"])
+    assert client.delete("/conta", headers=h).status_code == 204
+    r = client.post("/auth/login", json={"handle": "theta", "senha": "senha-forte-123"})
+    assert r.status_code == 401
+
+
+def test_simular(client):
+    from tests.test_matcher import ALFA, BETA
+    r = client.post("/match/simular", json={"usuario_a": ALFA, "usuario_b": BETA}).json()
+    assert r["score_porcentagem"] == 91 and r["score_mutuo"] == 96
