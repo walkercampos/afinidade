@@ -19,3 +19,9 @@ services:
         generateValue: true
       - key: DATABASE_URL
         sync: false
+      # Passkeys: o domínio exato do app, sem https:// (ex.: afinidade.onrender.com) ...
+      - key: WEBAUTHN_RP_ID
+        sync: false
+      # ... e a origem completa (ex.: https://afinidade.onrender.com). Várias: separe por vírgula.
+      - key: WEBAUTHN_ORIGENS
+        sync: false

@@ -8,8 +8,9 @@ para manter no ar.
 
 ## Como uma pessoa usa o app
 
-1. **Cria a conta** só com um apelido e uma senha. Se não quiser inventar um apelido, o app gera um
-   (tipo `anon_k3v9x2mq`). Não pedimos e-mail, telefone, nome nem foto. A pessoa confirma que tem
+1. **Cria a conta sem senha, com uma passkey:** o celular ou computador confirma com a digital, o
+   rosto ou o PIN, e pronto. Quem preferir pode usar apelido e senha. Se não quiser inventar um
+   apelido, o app gera um (tipo `anon_k3v9x2mq`). Não pedimos e-mail, telefone, nome nem foto. A pessoa confirma que tem
    18 anos ou mais e que aceita o uso dos dados sobre sexualidade para encontrar compatibilidades.
 2. **Monta o perfil:** um nome de exibição (pode ser inventado), o próprio gênero, os gêneros que busca e,
    para cada prática da lista, marca **Quero**, **Curioso(a)** ou **Limite** (nunca).
@@ -80,7 +81,10 @@ menos de um instante:
 
 ## Segurança contra ataques
 
-- **Senhas** guardadas de um jeito que nem nós conseguimos ler. Tentativas de adivinhar senhas são limitadas.
+- **Passkeys:** o jeito mais seguro de entrar que existe hoje. Não há senha para roubar ou vazar,
+  e um site falso não consegue usar a passkey, porque ela só funciona no endereço verdadeiro do app.
+  O servidor guarda só uma "chave pública", que não serve para entrar na conta de ninguém.
+- **Senhas** (para quem preferir) guardadas de um jeito que nem nós conseguimos ler. Tentativas de adivinhar senhas são limitadas.
 - **Sessão protegida:** o "crachá" de login fica num lugar que scripts maliciosos não conseguem ler.
 - **O site não carrega nada de fora** (nem fontes, nem estatísticas, nem anúncios): nenhuma empresa
   terceira fica sabendo quem acessa.

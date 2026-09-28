@@ -1,5 +1,7 @@
 import { irPara } from "./roteador.js";
-import { mensagemDeErro } from "./util.js";
+import {
+  credencialParaJSON, mensagemDeErro, mensagemDeErroPasskey, opcoesDeCriacao, opcoesDeLogin,
+} from "./util.js";
 
 export class ErroApi extends Error {
   constructor(status, detalhe) { super(detalhe); this.status = status; }
@@ -56,3 +58,36 @@ export async function carregarCatalogo() {
 }
 
 export const rotulo = (slug) => catalogo?.rotulo.get(slug) ?? slug;
+
+// ---------- passkeys ----------
+
+export const suportaPasskeys = () => Boolean(window.PublicKeyCredential && navigator.credentials?.create);
+
+/** Roda a cerimônia no aparelho; erros do navegador viram mensagens amigáveis. */
+async function noAparelho(acao) {
+  try {
+    return credencialParaJSON(await acao());
+  } catch (e) {
+    throw new Error(mensagemDeErroPasskey(e));
+  }
+}
+
+/** Cria a conta sem senha: o servidor só cria a conta depois de validar a passkey. */
+export async function cadastrarComPasskey(dados) {
+  const { desafio_id, opcoes } = await api("/auth/passkey/registro/opcoes", { metodo: "POST", corpo: dados });
+  const credencial = await noAparelho(() => navigator.credentials.create({ publicKey: opcoesDeCriacao(opcoes) }));
+  return api("/auth/passkey/registro", { metodo: "POST", corpo: { desafio_id, credencial } });
+}
+
+/** Entra sem digitar nada: o aparelho mostra as passkeys que tem para este site. */
+export async function entrarComPasskey() {
+  const { desafio_id, opcoes } = await api("/auth/passkey/login/opcoes", { metodo: "POST" });
+  const credencial = await noAparelho(() => navigator.credentials.get({ publicKey: opcoesDeLogin(opcoes) }));
+  return api("/auth/passkey/login", { metodo: "POST", corpo: { desafio_id, credencial } });
+}
+
+export async function adicionarPasskey(nome) {
+  const { desafio_id, opcoes } = await api("/passkeys/opcoes", { metodo: "POST" });
+  const credencial = await noAparelho(() => navigator.credentials.create({ publicKey: opcoesDeCriacao(opcoes) }));
+  return api("/passkeys", { metodo: "POST", corpo: { desafio_id, credencial, nome: nome || null } });
+}

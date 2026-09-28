@@ -1,5 +1,6 @@
 """Todo o SQL da aplicação. Cada função recebe uma conexão asyncpg."""
 
+import secrets
 from uuid import UUID
 
 import asyncpg
@@ -62,20 +63,53 @@ async def existe_conta(con, conta_id: UUID) -> bool:
     return await con.fetchval("SELECT EXISTS (SELECT 1 FROM contas WHERE id = $1)", conta_id)
 
 
-async def criar_conta(con, handle: str, senha_hash: str) -> UUID | None:
+async def criar_conta(con, handle: str, senha_hash: str | None, webauthn_id: bytes | None = None) -> UUID | None:
+    """None se o apelido já existe. `senha_hash` é None em contas só com passkey."""
     try:
         return await con.fetchval(
-            "INSERT INTO contas (handle, senha_hash, adulto_confirmado_em, consentimento_em)"
-            " VALUES ($1, $2, now(), now()) RETURNING id",
+            "INSERT INTO contas (handle, senha_hash, webauthn_id, adulto_confirmado_em, consentimento_em)"
+            " VALUES ($1, $2, $3, now(), now()) RETURNING id",
             handle,
             senha_hash,
+            webauthn_id,
         )
     except asyncpg.UniqueViolationError:
         return None
 
 
+_ALFABETO_HANDLE = "abcdefghijkmnpqrstuvwxyz23456789"  # sem 0/o/1/l, fáceis de confundir
+
+
+def handle_aleatorio() -> str:
+    return "anon_" + "".join(secrets.choice(_ALFABETO_HANDLE) for _ in range(8))
+
+
+async def criar_conta_anonima(
+    con, handle: str | None, senha_hash: str | None, webauthn_id: bytes | None = None
+) -> tuple[UUID, str] | None:
+    """Cria a conta com o apelido escolhido ou, sem ele, com um aleatório.
+
+    None só quando o apelido ESCOLHIDO já está em uso (32^8 combinações tornam colisão
+    do aleatório raríssima; mesmo assim tentamos algumas vezes).
+    """
+    if handle:
+        conta_id = await criar_conta(con, handle, senha_hash, webauthn_id)
+        return (conta_id, handle) if conta_id else None
+    for _ in range(5):
+        handle = handle_aleatorio()
+        if (conta_id := await criar_conta(con, handle, senha_hash, webauthn_id)) is not None:
+            return conta_id, handle
+    raise RuntimeError("Não foi possível gerar um apelido livre")
+
+
 async def buscar_conta_por_handle(con, handle: str):
     return await con.fetchrow("SELECT id, senha_hash, token_versao, situacao FROM contas WHERE handle = $1", handle)
+
+
+async def buscar_conta(con, conta_id: UUID):
+    return await con.fetchrow(
+        "SELECT id, handle, senha_hash, webauthn_id, token_versao, situacao FROM contas WHERE id = $1", conta_id
+    )
 
 
 async def invalidar_sessoes(con, conta_id: UUID) -> None:

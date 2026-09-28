@@ -27,6 +27,8 @@ async function novaPessoa(apelido, genero, busca) {
   pagina.on("pageerror", (e) => erros.push(String(e)));
   await pagina.goto(`${BASE}/#/entrar`);
   await pagina.click("button[role=tab]:has-text('Criar conta')");
+  // Passkey é o padrão; estes testes usam o caminho alternativo, com senha.
+  await pagina.click("button:has-text('Prefiro criar com senha')");
   await pagina.fill("#handle", apelido);
   await pagina.fill("#senha", SENHA);
   await pagina.fill("#nascimento", "1991-02-03");
@@ -140,5 +142,52 @@ test("botão de pânico visível e com rótulo acessível em todas as telas", as
   const botao = pagina.locator("#panico");
   assert.ok(await botao.isVisible());
   assert.equal(await botao.getAttribute("aria-label"), "Saída rápida (ESC)");
+  await ctx.close();
+});
+
+/** Simula um celular com biometria (autenticador de plataforma do Chrome via DevTools). */
+async function autenticadorVirtual(ctx, pagina) {
+  const cdp = await ctx.newCDPSession(pagina);
+  await cdp.send("WebAuthn.enable");
+  const { authenticatorId } = await cdp.send("WebAuthn.addVirtualAuthenticator", {
+    options: {
+      protocol: "ctap2", transport: "internal", hasResidentKey: true,
+      hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true,
+    },
+  });
+  return { credenciais: async () => (await cdp.send("WebAuthn.getCredentials", { authenticatorId })).credentials };
+}
+
+test("criar conta e entrar só com passkey, sem senha", async () => {
+  const ctx = await navegador.newContext({ viewport: { width: 360, height: 780 } });
+  const pagina = await ctx.newPage();
+  const erros = [];
+  pagina.on("pageerror", (e) => erros.push(String(e)));
+  await pagina.goto(`${BASE}/#/entrar`);
+  const aparelho = await autenticadorVirtual(ctx, pagina);
+
+  await pagina.click("button[role=tab]:has-text('Criar conta')");
+  await pagina.fill("#handle", `pk_${sufixo}`);
+  await pagina.fill("#nascimento", "1992-02-02");
+  await pagina.check("input[name=maior]");
+  await pagina.check("input[name=consinto]");
+  assert.equal(await pagina.isVisible("#senha"), false); // passkey é o padrão: sem campo de senha
+  await pagina.click("button[type=submit]:has-text('Criar conta com passkey')");
+  await esperarTitulo(pagina, "Crie seu perfil");
+
+  const [credencial] = await aparelho.credenciais();
+  assert.equal(credencial.isResidentCredential, true); // passkey descobrível: entra sem digitar o apelido
+
+  await pagina.goto(`${BASE}/#/conta`);
+  await pagina.waitForSelector(".lista-passkeys li");
+  assert.equal(await pagina.locator(".lista-passkeys li").count(), 1);
+  await pagina.click("button:has-text('Sair de todos os dispositivos')");
+  await esperarTitulo(pagina, "Conexões por afinidade, sem expor quem você é");
+  assert.equal((await ctx.request.get(`${BASE}/api/passkeys`)).status(), 401);
+
+  await pagina.click("button:has-text('Entrar com passkey')");
+  await esperarTitulo(pagina, "Crie seu perfil"); // entrou: ainda não tem perfil
+  assert.equal((await ctx.request.get(`${BASE}/api/passkeys`)).status(), 200);
+  assert.deepEqual(erros, []);
   await ctx.close();
 });

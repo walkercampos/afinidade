@@ -35,6 +35,9 @@ def client():
             "CHAVE_MENSAGENS": "y" * 32,
             "AMBIENTE": "dev",
             "LIMITE_AUTH_POR_MIN": "100000",
+            # O TestClient fala com http://testserver: é essa a origem das passkeys nos testes.
+            "WEBAUTHN_RP_ID": "testserver",
+            "WEBAUTHN_ORIGENS": "http://testserver",
             "LIMITE_API_POR_MIN": "100000",
         }
     )

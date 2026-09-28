@@ -22,6 +22,7 @@ diretamente com a pessoa mantenedora. Respondemos em até 7 dias.
 |---|---|
 | Roubo de sessão (XSS) | cookie HttpOnly; o front insere dados só como texto; CSP `script-src 'self'` |
 | CSRF | `SameSite=Strict` + header `X-CSRF` obrigatório em escrita |
+| Senha roubada ou phishing | **passkeys** (WebAuthn): nada para roubar, assinatura presa ao domínio, biometria/PIN obrigatórios, desafios de uso único, detecção de clone |
 | Força bruta | scrypt; limite por IP (sem guardar o IP) e por apelido |
 | Enumeração de apelidos | tempo de login constante (hash falso para apelido inexistente) |
 | Sessão vazada ou conta banida | `token_versao`: sair, excluir ou banir invalida todos os tokens na hora |
@@ -43,6 +44,7 @@ diretamente com a pessoa mantenedora. Respondemos em até 7 dias.
 - [ ] `JWT_SECRET` e `CHAVE_MENSAGENS` aleatórios, só no painel do provedor. **Faça backup seguro da
       `CHAVE_MENSAGENS`**: perdê-la torna mensagens e fotos ilegíveis.
 - [ ] `DATABASE_URL` com `sslmode=require`
+- [ ] `WEBAUTHN_RP_ID` e `WEBAUTHN_ORIGENS` com o domínio **definitivo** (trocar depois invalida as passkeys)
 - [ ] 2FA nas contas do GitHub, Render e Neon; proteção da branch `main` exigindo a pipeline verde
 - [ ] Pelo menos uma pessoa moderadora ativa
 - [ ] Revisão jurídica: LGPD, Marco Civil (art. 15) e verificação de idade

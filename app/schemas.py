@@ -1,7 +1,7 @@
 """Contratos da API (entrada e saída). Um bloco por domínio, na mesma ordem das rotas."""
 
 from datetime import date, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, BeforeValidator, Field, StringConstraints, field_validator, model_validator
@@ -23,10 +23,12 @@ MAX_TAGS_POR_NIVEL = 100
 # ---------- autenticação ----------
 
 
-class Registro(BaseModel):
+class Cadastro(BaseModel):
+    """Dados comuns a todo cadastro (com senha ou com passkey). A data de nascimento só é
+    usada nesta validação e nunca é gravada."""
+
     # Opcional: sem apelido, o sistema gera um aleatório (ex.: anon_k3v9x2mq).
     handle: Handle | None = None
-    senha: str = Field(min_length=10, max_length=128)
     data_nascimento: date
     confirmo_maior_de_idade: bool
     consinto_dados_sensiveis: bool
@@ -43,6 +45,10 @@ class Registro(BaseModel):
         return self
 
 
+class Registro(Cadastro):
+    senha: str = Field(min_length=10, max_length=128)
+
+
 class Login(BaseModel):
     handle: Handle
     senha: str = Field(max_length=128)
@@ -52,6 +58,31 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"  # noqa: S105 (tipo do token, não é senha)
     handle: str
+
+
+# ---------- passkeys ----------
+
+
+class OpcoesPasskey(BaseModel):
+    """Enviado ao navegador: repassar `opcoes` para navigator.credentials.create/get e
+    devolver a resposta junto com o mesmo `desafio_id`."""
+
+    desafio_id: UUID
+    opcoes: dict[str, Any]
+
+
+class RespostaPasskey(BaseModel):
+    desafio_id: UUID
+    credencial: dict[str, Any]  # PublicKeyCredential serializado (formato JSON do WebAuthn)
+    nome: str | None = Field(default=None, max_length=40)
+
+
+class PasskeySalva(BaseModel):
+    id: str  # credential ID em base64url
+    nome: str
+    sincronizada: bool  # tem backup (iCloud, Google...): não se perde se o aparelho quebrar
+    criado_em: datetime
+    usado_em: datetime | None
 
 
 # ---------- perfil ----------

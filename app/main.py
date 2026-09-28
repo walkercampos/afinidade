@@ -13,10 +13,11 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
 from . import mensagens
+from . import passkeys as dominio_passkeys
 from .config import config
 from .cripto import Cifrador
 from .db import criar_pool, migrar
-from .routes import auth, chat, descoberta, fotos, moderacao, perfil, saude
+from .routes import auth, chat, descoberta, fotos, moderacao, passkeys, perfil, saude
 
 log = logging.getLogger("matchmaking")
 DIR_STATIC = Path(__file__).resolve().parent.parent / "static"
@@ -35,8 +36,9 @@ async def _limpeza_periodica(app: FastAPI) -> None:
         try:
             async with app.state.pool.acquire() as con:
                 await mensagens.apagar_expiradas(con, config().mensagens_retencao_dias)
+                await dominio_passkeys.apagar_desafios_expirados(con)
         except Exception:  # a limpeza nunca deve derrubar a API; tenta de novo no próximo ciclo
-            log.exception("Falha na limpeza de mensagens")
+            log.exception("Falha na limpeza periódica")
         await asyncio.sleep(INTERVALO_LIMPEZA_S)
 
 
@@ -83,7 +85,7 @@ def criar_app() -> FastAPI:
         return response
 
     api = APIRouter(prefix="/api")
-    for modulo in (saude, auth, perfil, descoberta, fotos, chat, moderacao):
+    for modulo in (saude, auth, passkeys, perfil, descoberta, fotos, chat, moderacao):
         api.include_router(modulo.router)
     app.include_router(api)
     # Front-end estático no mesmo domínio: sem CORS, e o cookie SameSite=Strict funciona.

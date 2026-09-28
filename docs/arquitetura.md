@@ -38,7 +38,8 @@ Ordens disponíveis em `/api/descobrir?ordem=`: `compatibilidade` (padrão), `af
 
 | Tabela | Conteúdo |
 |---|---|
-| `contas` | apelido, hash da senha, quando confirmou 18+ e o consentimento, `papel`, `situacao`, `token_versao` |
+| `contas` | apelido, hash da senha (opcional), `webauthn_id` aleatório, quando confirmou 18+ e o consentimento, `papel`, `situacao`, `token_versao` |
+| `passkeys`, `desafios_webauthn` | chaves **públicas** das passkeys e desafios de uso único (5 min); ver [autenticacao.md](autenticacao.md) |
 | `perfis` | nome de exibição, bio, gênero, `busca_por[]`, `tags_quero[]`, `tags_curioso[]`, `tags_limite[]`, célula geohash |
 | `curtidas`, `bloqueios` | relações entre contas (curtida recíproca = conexão) |
 | `mensagens` | texto **cifrado** (AES-256-GCM), `lida_em` (some 5 min depois) |

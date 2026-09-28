@@ -5,7 +5,7 @@ Rede social adulta (18+) de conexões por afinidade, com foco em diversidade de 
 
 - **Para entender o projeto sem jargão:** [docs/relatorio.md](docs/relatorio.md)
 - **Para desenvolver:** [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/arquitetura.md](docs/arquitetura.md)
-- **Segurança:** [SECURITY.md](SECURITY.md) · **Próximos passos:** [docs/roadmap.md](docs/roadmap.md)
+- **Segurança:** [SECURITY.md](SECURITY.md) · **Login sem senha:** [docs/autenticacao.md](docs/autenticacao.md) · **Próximos passos:** [docs/roadmap.md](docs/roadmap.md)
 - **Linguagem visual "Véu Luminoso":** [docs/design/](docs/design/filosofia-veu-luminoso.md)
 
 <p>
@@ -18,7 +18,7 @@ Rede social adulta (18+) de conexões por afinidade, com foco em diversidade de 
 
 | Funcionalidade | Resumo |
 |---|---|
-| Cadastro anônimo | Só apelido (ou um gerado automaticamente) e senha. Sem e-mail, telefone ou nome. 18+ e consentimento obrigatórios. |
+| Cadastro anônimo | Sem e-mail, telefone ou nome: **passkey** (digital, rosto ou PIN, sem senha) ou apelido + senha. 18+ e consentimento obrigatórios. |
 | Matchmaking | Gênero mútuo → limites absolutos → afinidade ponderada (quero 3 · quero/curioso 2 · curioso 1), calculado no Postgres. |
 | Gostos parecidos | Similaridade de preferências (0–100%) para ver quem curte as mesmas coisas. |
 | Localização aproximada | Só um quadrado de ~5 km; distância exibida em faixas ("até 10 km"). |
@@ -49,7 +49,7 @@ Com Docker para tudo: `docker compose up --build`.
 | Banco PostgreSQL | Neon, plano *free* |
 
 **Deploy:** crie o banco no Neon → no Render, *New → Blueprint* apontando para o repositório (ele gera
-`JWT_SECRET` e `CHAVE_MENSAGENS` sozinho; cole o `DATABASE_URL` do Neon) → no GitHub, em
+`JWT_SECRET` e `CHAVE_MENSAGENS` sozinho; cole o `DATABASE_URL` do Neon e, com a URL do app em mãos, `WEBAUTHN_RP_ID` e `WEBAUTHN_ORIGENS`, veja [autenticacao.md](docs/autenticacao.md)) → no GitHub, em
 *Settings → Environments → producao*, cadastre o secret `RENDER_DEPLOY_HOOK_URL` e a variável `APP_URL`.
 A partir daí, todo merge na `main` que passa na pipeline vai para o ar sozinho.
 

@@ -19,6 +19,9 @@ class Config:
     mensagens_retencao_dias: int
     # Denunciantes distintos (com conta de pelo menos 24 h) para ocultar um perfil até revisão.
     denuncias_para_revisao: int
+    # Passkeys: o domínio (sem esquema nem porta) e as origens exatas de onde o app é servido.
+    webauthn_rp_id: str
+    webauthn_origens: tuple[str, ...]
 
 
 def _segredo(nome: str) -> str:
@@ -28,17 +31,33 @@ def _segredo(nome: str) -> str:
     return valor
 
 
+def _webauthn(producao: bool) -> tuple[str, tuple[str, ...]]:
+    rp_id = os.environ.get("WEBAUTHN_RP_ID")
+    origens = os.environ.get("WEBAUTHN_ORIGENS")
+    if producao and not (rp_id and origens):
+        # Falha na subida em vez de subir com passkeys quebradas (ou aceitando qualquer origem).
+        raise RuntimeError(
+            "Defina WEBAUTHN_RP_ID (ex.: afinidade.onrender.com) e WEBAUTHN_ORIGENS "
+            "(ex.: https://afinidade.onrender.com) — veja docs/autenticacao.md."
+        )
+    rp_id = rp_id or "localhost"
+    lista = tuple(o.strip().rstrip("/") for o in (origens or "http://localhost:8000").split(",") if o.strip())
+    return rp_id, lista
+
+
 @cache
 def config() -> Config:
     """Lida uma única vez, na primeira chamada (depois que o ambiente já foi configurado)."""
     e = os.environ.get
+    producao = e("AMBIENTE", "producao") == "producao"
+    rp_id, origens = _webauthn(producao)
     return Config(
         database_url=e("DATABASE_URL", "postgresql://matchmaking:matchmaking@localhost:5432/matchmaking"),
         jwt_secret=_segredo("JWT_SECRET"),
         jwt_expira_min=int(e("JWT_EXPIRA_MIN", "1440")),
         chave_mensagens=_segredo("CHAVE_MENSAGENS"),
         # Em produção: cookie Secure, HSTS e /docs desligado.
-        producao=e("AMBIENTE", "producao") == "producao",
+        producao=producao,
         limite_auth_por_min=int(e("LIMITE_AUTH_POR_MIN", "10")),
         limite_api_por_min=int(e("LIMITE_API_POR_MIN", "120")),
         limite_mensagens_por_min=int(e("LIMITE_MENSAGENS_POR_MIN", "30")),
@@ -46,4 +65,6 @@ def config() -> Config:
         inatividade_max_dias=int(e("INATIVIDADE_MAX_DIAS", "90")),
         mensagens_retencao_dias=int(e("MENSAGENS_RETENCAO_DIAS", "30")),
         denuncias_para_revisao=int(e("DENUNCIAS_PARA_REVISAO", "3")),
+        webauthn_rp_id=rp_id,
+        webauthn_origens=origens,
     )

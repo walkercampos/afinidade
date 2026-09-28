@@ -52,3 +52,69 @@ export function lerRota(hash) {
 export function normalizarFilhos(filhos) {
   return filhos.flat(Infinity).filter((f) => f != null && f !== false);
 }
+
+// ---------- passkeys (WebAuthn) ----------
+// O servidor fala JSON (bytes em base64url); a API do navegador fala ArrayBuffer.
+
+export function b64urlParaBytes(texto) {
+  const b64 = texto.replace(/-/g, "+").replace(/_/g, "/");
+  const binario = atob(b64 + "===".slice((b64.length + 3) % 4));
+  return Uint8Array.from(binario, (c) => c.charCodeAt(0));
+}
+
+export function bytesParaB64url(buffer) {
+  let binario = "";
+  for (const byte of new Uint8Array(buffer)) binario += String.fromCharCode(byte);
+  return btoa(binario).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+const comIdsEmBytes = (lista) => (lista ?? []).map((c) => ({ ...c, id: b64urlParaBytes(c.id) }));
+
+/** Opções do servidor → formato de navigator.credentials.create({ publicKey }). */
+export function opcoesDeCriacao(json) {
+  return {
+    ...json,
+    challenge: b64urlParaBytes(json.challenge),
+    user: { ...json.user, id: b64urlParaBytes(json.user.id) },
+    excludeCredentials: comIdsEmBytes(json.excludeCredentials),
+  };
+}
+
+/** Opções do servidor → formato de navigator.credentials.get({ publicKey }). */
+export function opcoesDeLogin(json) {
+  return { ...json, challenge: b64urlParaBytes(json.challenge), allowCredentials: comIdsEmBytes(json.allowCredentials) };
+}
+
+/** PublicKeyCredential → JSON que o servidor entende (serve para criação e para login). */
+export function credencialParaJSON(credencial) {
+  const r = credencial.response;
+  const json = {
+    id: credencial.id,
+    rawId: bytesParaB64url(credencial.rawId),
+    type: credencial.type,
+    authenticatorAttachment: credencial.authenticatorAttachment ?? null,
+    clientExtensionResults: credencial.getClientExtensionResults?.() ?? {},
+    response: { clientDataJSON: bytesParaB64url(r.clientDataJSON) },
+  };
+  if (r.attestationObject) {
+    json.response.attestationObject = bytesParaB64url(r.attestationObject);
+    json.response.transports = r.getTransports?.() ?? [];
+  } else {
+    json.response.authenticatorData = bytesParaB64url(r.authenticatorData);
+    json.response.signature = bytesParaB64url(r.signature);
+    json.response.userHandle = r.userHandle ? bytesParaB64url(r.userHandle) : null;
+  }
+  return json;
+}
+
+/** Mensagem amigável para os erros que o navegador lança nas cerimônias de passkey. */
+export function mensagemDeErroPasskey(erro) {
+  switch (erro?.name) {
+    case "NotAllowedError": return "Operação cancelada ou tempo esgotado. Tente de novo.";
+    case "InvalidStateError": return "Este aparelho já tem uma passkey desta conta.";
+    case "SecurityError": return "Passkeys só funcionam em HTTPS (ou em localhost).";
+    case "NotSupportedError": return "Este navegador ou aparelho não suporta passkeys.";
+    case "AbortError": return "Operação cancelada.";
+    default: return erro?.message || "Não foi possível usar a passkey.";
+  }
+}

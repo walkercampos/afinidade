@@ -49,6 +49,14 @@ def emitir_token(conta_id: UUID, versao: int, segredo: str, expira_min: int) -> 
     return jwt.encode(payload, segredo, algorithm="HS256")
 
 
+def iniciar_sessao(response: Response, conta_id: UUID, versao: int, handle: str) -> dict:
+    """Emite o token, grava o cookie HttpOnly e devolve o corpo da resposta de login."""
+    cfg = config()
+    token = emitir_token(conta_id, versao, cfg.jwt_secret, cfg.jwt_expira_min)
+    gravar_cookie_sessao(response, token, cfg)
+    return {"access_token": token, "token_type": "bearer", "handle": handle}
+
+
 def gravar_cookie_sessao(response: Response, token: str, config) -> None:
     response.set_cookie(
         COOKIE_SESSAO,

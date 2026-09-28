@@ -1,4 +1,4 @@
-import { api } from "../api.js";
+import { api, cadastrarComPasskey, entrarComPasskey, suportaPasskeys } from "../api.js";
 import { formulario, h } from "../dom.js";
 import { irPara } from "../roteador.js";
 
@@ -8,40 +8,83 @@ const campoApelido = (obrigatorio) => [
     autocapitalize: "none", spellcheck: "false", pattern: "[a-zA-Z0-9_]{3,30}", maxlength: 30 }),
 ];
 
+function botaoPasskey(texto, acao) {
+  const erro = h("p", { class: "erro", role: "alert" });
+  const botao = h("button", { type: "button", class: "passkey", onclick: async () => {
+    botao.disabled = true;
+    erro.textContent = "";
+    try { await acao(); } catch (e) { erro.textContent = e.message; } finally { botao.disabled = false; }
+  } }, texto);
+  return h("div", { class: "bloco-passkey" }, botao, erro);
+}
+
 function formEntrar() {
-  return formulario(async (f) => {
+  const comSenha = formulario(async (f) => {
     await api("/auth/login", { metodo: "POST", corpo: { handle: f.get("handle"), senha: f.get("senha") } });
     irPara("descobrir");
   },
   ...campoApelido(true),
   h("label", { for: "senha" }, "Senha"),
   h("input", { id: "senha", name: "senha", type: "password", required: true, autocomplete: "current-password" }),
-  h("div", { class: "acoes" }, h("button", { type: "submit" }, "Entrar")));
+  h("div", { class: "acoes" }, h("button", { type: "submit", class: suportaPasskeys() ? "secundario" : "" }, "Entrar com senha")));
+
+  if (!suportaPasskeys()) return comSenha;
+  return h("div", {},
+    botaoPasskey("Entrar com passkey", async () => { await entrarComPasskey(); irPara("descobrir"); }),
+    h("p", { class: "nota" }, "Sem digitar nada: use a digital, o rosto ou o PIN do seu aparelho."),
+    h("p", { class: "separador" }, "ou com apelido e senha"),
+    comSenha);
 }
 
 function formCriar() {
-  return formulario(async (f) => {
-    const { handle } = await api("/auth/registro", { metodo: "POST", corpo: {
-      handle: f.get("handle") || null, senha: f.get("senha"), data_nascimento: f.get("nascimento"),
+  const passkey = suportaPasskeys();
+  let modo = passkey ? "passkey" : "senha";
+  const senha = h("input", { id: "senha", name: "senha", type: "password", minlength: 10, maxlength: 128,
+    autocomplete: "new-password" });
+  const blocoSenha = h("div", {},
+    h("label", { for: "senha" }, "Senha"), senha,
+    h("p", { class: "nota" }, "Mínimo de 10 caracteres. Sem e-mail não há recuperação de senha: guarde-a num gerenciador."));
+  const enviar = h("button", { type: "submit" });
+  const alternar = h("button", { type: "button", class: "link", onclick: () => { modo = modo === "passkey" ? "senha" : "passkey"; aplicar(); } });
+  const explicacaoPasskey = h("p", { class: "nota" },
+    "Com passkey não existe senha para vazar ou esquecer: você entra com a digital, o rosto ou o PIN deste aparelho. "
+    + "Passkeys salvas no iCloud ou no Google aparecem nos seus outros aparelhos.");
+
+  function aplicar() {
+    const comSenha = modo === "senha";
+    blocoSenha.hidden = !comSenha;
+    senha.required = comSenha;
+    explicacaoPasskey.hidden = comSenha;
+    enviar.textContent = comSenha ? "Criar conta com senha" : "Criar conta com passkey";
+    alternar.textContent = comSenha ? "Prefiro usar passkey (sem senha)" : "Prefiro criar com senha";
+    alternar.hidden = !passkey;
+  }
+
+  const form = formulario(async (f) => {
+    const dados = {
+      handle: f.get("handle") || null, data_nascimento: f.get("nascimento"),
       confirmo_maior_de_idade: f.get("maior") === "on", consinto_dados_sensiveis: f.get("consinto") === "on",
-    } });
-    if (!f.get("handle")) alert(`Seu apelido é ${handle}\n\nAnote: é com ele e a senha que você entra.`);
+    };
+    const { handle } = modo === "passkey"
+      ? await cadastrarComPasskey(dados)
+      : await api("/auth/registro", { metodo: "POST", corpo: { ...dados, senha: f.get("senha") } });
+    if (!f.get("handle")) alert(`Seu apelido é ${handle}\n\nÉ assim que as pessoas vão te ver até você escolher um nome.`);
     irPara("perfil");
   },
   h("p", { class: "nota" }, "Não pedimos e-mail, telefone nem nome real."),
   ...campoApelido(false),
   h("p", { class: "nota" }, "Deixe em branco para receber um apelido aleatório. Não use o mesmo de outras redes."),
-  h("label", { for: "senha" }, "Senha"),
-  h("input", { id: "senha", name: "senha", type: "password", required: true, minlength: 10, maxlength: 128,
-    autocomplete: "new-password" }),
-  h("p", { class: "nota" }, "Mínimo de 10 caracteres. Sem e-mail não há recuperação de senha: guarde-a num gerenciador."),
   h("label", { for: "nascimento" }, "Data de nascimento"),
   h("input", { id: "nascimento", name: "nascimento", type: "date", required: true }),
   h("p", { class: "nota" }, "Usada só para confirmar a maioridade. Não é armazenada."),
   h("label", { class: "check" }, h("input", { type: "checkbox", name: "maior", required: true }), "Tenho 18 anos ou mais."),
   h("label", { class: "check" }, h("input", { type: "checkbox", name: "consinto", required: true }),
     "Consinto com o tratamento dos meus dados sobre sexualidade para gerar compatibilidades. Posso excluir tudo a qualquer momento."),
-  h("div", { class: "acoes" }, h("button", { type: "submit" }, "Criar conta")));
+  blocoSenha, explicacaoPasskey,
+  h("div", { class: "acoes" }, enviar),
+  alternar);
+  aplicar();
+  return form;
 }
 
 export function telaEntrar(_parametro, ctx) {
