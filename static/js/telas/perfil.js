@@ -28,7 +28,7 @@ function seletorDeInteresses(tags, atual) {
   return { elemento: h("div", { class: "cartao" }, linhas), valor };
 }
 
-function formPerfil(generos, tags, atual) {
+function formPerfil(generos, tags, atual, ctx) {
   const interesses = seletorDeInteresses(tags, atual);
   const bio = h("textarea", { id: "bio", name: "bio", maxlength: 500 });
   bio.value = atual?.bio ?? "";
@@ -40,7 +40,8 @@ function formPerfil(generos, tags, atual) {
       tags_interesses: interesses.valor(), visivel: f.get("visivel") === "on",
     } });
     avisar("Perfil salvo");
-    if (!atual) irPara("perfil");
+    // Só recarrega se a pessoa ainda estiver aqui (não a puxa de volta de outra tela).
+    if (!atual && ctx.ativa()) irPara("perfil");
   },
   h("label", { for: "nome" }, "Nome de exibição"),
   h("input", { id: "nome", name: "nome", type: "text", required: true, maxlength: 40, value: atual?.nome_exibicao ?? "" }),
@@ -131,8 +132,8 @@ export async function telaPerfil(_parametro, ctx) {
   const { generos, tags } = await carregarCatalogo();
   let atual = null;
   try { atual = await api("/perfil"); } catch (e) { if (e.status !== 404) throw e; }
-  if (!atual) return ctx.mostrar(h("h1", {}, "Crie seu perfil"), formPerfil(generos, tags, null));
+  if (!atual) return ctx.mostrar(h("h1", {}, "Crie seu perfil"), formPerfil(generos, tags, null, ctx));
   ctx.mostrar(h("h1", {}, "Seu perfil"), await secaoPedidos(), await secaoFotos(), secaoLocalizacao(atual),
-    formPerfil(generos, tags, atual),
+    formPerfil(generos, tags, atual, ctx),
     h("p", { class: "nota" }, h("a", { href: "#/descobrir" }, "Ir para Descobrir →")));
 }

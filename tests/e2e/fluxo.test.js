@@ -39,8 +39,13 @@ async function novaPessoa(apelido, genero, busca) {
   await pagina.check(`input[name=busca_por][value=${busca}]`);
   await pagina.click(".tag-linha:has-text('Bondage') button[data-nivel=quero]");
   await pagina.click("form button[type=submit]");
-  await pagina.waitForSelector("h1:has-text('Seu perfil')");
+  await esperarTitulo(pagina, "Seu perfil");
   return { ctx, pagina, erros };
+}
+
+/** Espera o título EXATO (":has-text" casaria "Crie seu perfil" com "Seu perfil"). */
+async function esperarTitulo(pagina, titulo) {
+  await pagina.waitForFunction((t) => document.querySelector("main h1")?.textContent === t, titulo);
 }
 
 async function semRolagemHorizontal(pagina) {
@@ -107,7 +112,8 @@ test("trocar de tela rápido não deixa a tela antiga sobrescrever a nova", asyn
   });
   await pessoa.pagina.goto(`${BASE}/#/descobrir`);
   await pessoa.pagina.goto(`${BASE}/#/conta`);
-  await pessoa.pagina.waitForTimeout(2000);
+  await esperarTitulo(pessoa.pagina, "Conta");
+  await pessoa.pagina.waitForTimeout(2000); // a descoberta termina aqui e não pode desenhar
   assert.equal(await pessoa.pagina.textContent("main h1"), "Conta");
   await pessoa.ctx.close();
 });
