@@ -30,7 +30,6 @@ Rede social adulta (18+) de conexões por afinidade, com foco em diversidade de 
 ## Rodando localmente
 
 ```bash
-cd matchmaking
 cp .env.example .env     # gere JWT_SECRET e CHAVE_MENSAGENS (comando no arquivo)
 make instalar            # dependências + pre-commit
 make db                  # PostgreSQL local via Docker
@@ -62,7 +61,7 @@ Limites dos planos gratuitos mudam; confira antes de lançar. O plano *free* do 
 `lint` (ruff + JS) · `testes` (Python + PostgreSQL, cobertura mínima 90%) · `navegador` (Playwright) ·
 `auditoria` (vulnerabilidades) → `imagem` (build Docker + smoke test) → `deploy` (só na `main`).
 Roda em todo push/PR e **todo dia às 06:17** para pegar vulnerabilidades novas. Detalhes em
-[`.github/workflows/matchmaking.yml`](../.github/workflows/matchmaking.yml).
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Anonimato: limites honestos
 

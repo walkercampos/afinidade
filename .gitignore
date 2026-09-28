@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.pytest_cache/
+.ruff_cache/
+.coverage
+node_modules/
+emails-dev/
+.DS_Store

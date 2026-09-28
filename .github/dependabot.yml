@@ -1,0 +1,14 @@
+# Atualizações automáticas de dependências (abre PRs; a pipeline valida cada uma).
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      dependencias-python: { patterns: ["*"] }
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }

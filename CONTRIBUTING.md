@@ -101,6 +101,24 @@ O ranking roda em SQL (`descoberta.py`) e os detalhes exibidos em Python (`match
 Ao mudar pesos ou fórmulas, **mude os dois** e rode `tests/test_paridade.py`, que compara
 os dois em perfis aleatórios.
 
+## Branches e fluxo de trabalho
+
+| Branch | Para quê |
+|---|---|
+| `main` | o que está no ar. **Todo merge aqui faz deploy** (se a pipeline passar). Protegida: só entra por PR. |
+| `develop` | integração do dia a dia. As funcionalidades novas entram aqui primeiro. |
+| `funcionalidade/<nome>` | uma por tarefa, criada a partir da `develop` (ex.: `funcionalidade/favoritos`). |
+| `correcao/<nome>` | correções; urgentes podem sair da `main` e voltar para as duas. |
+
+1. `git switch develop && git pull`
+2. `git switch -c funcionalidade/favoritos`
+3. Commits pequenos, com mensagem no imperativo ("Adiciona favoritos").
+4. Abra um PR para a `develop`. A pipeline roda sozinha; só faça merge com tudo verde.
+5. Para publicar: PR da `develop` para a `main`.
+
+Proteja as duas branches em *Settings → Branches → Add rule*: exija PR e a pipeline passando
+(`lint`, `testes`, `navegador`, `auditoria`, `imagem`).
+
 ## Estilo e revisão
 
 - `ruff` cuida de formatação, ordem de imports, bugs comuns e regras de segurança

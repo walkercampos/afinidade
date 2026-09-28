@@ -1,0 +1,227 @@
+# Pipeline do Afinidade.
+#
+#   PR ou push ─┬─ lint ──────┐
+#               ├─ testes ────┤
+#               ├─ navegador ─┼─ imagem (build + smoke test do contêiner) ─┐
+#               └─ auditoria ─┘                                            │
+#   push (qualquer branch) roda o CI; só push na main faz o deploy
+#   push na main ──────────────────────────────────────────────────────────┴─ deploy (Render) + verificação
+#
+# Deploy: configure em Settings → Environments → "producao":
+#   secret   RENDER_DEPLOY_HOOK_URL  (Render → serviço → Settings → Deploy Hook)
+#   variable APP_URL                 (ex.: https://matchmaking.onrender.com)
+# Sem o secret, o job de deploy é pulado e a pipeline continua verde.
+name: Afinidade CI/CD
+
+on:
+  pull_request:
+  push:
+  # Roda tudo todo dia, mesmo sem mudanças: pega vulnerabilidades novas nas dependências
+  # e quebras vindas de fora (imagem base, serviços). Nunca faz deploy.
+  schedule:
+    - cron: "17 9 * * *"   # 06:17 em Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: afinidade-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  APP_DIR: .
+  PYTHON_VERSION: "3.11"
+
+defaults:
+  run:
+    working-directory: .
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Ruff (estilo, imports, bugs comuns e regras de segurança)
+        run: ruff check --output-format=github .
+      - name: Formatação
+        run: ruff format --check .
+      - name: Sintaxe do JavaScript do front-end
+        run: for f in $(find static/js -name '*.js'); do node --check "$f"; done
+      - name: Testes unitários do front-end (node --test, sem dependências)
+        run: npm test
+
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: matchmaking_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Testes (unitários + ponta a ponta com PostgreSQL)
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/matchmaking_test
+        run: pytest -q -rs --cov --cov-report=term
+
+  auditoria:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install pip-audit
+      - name: Vulnerabilidades conhecidas nas dependências
+        run: pip-audit -r requirements.txt
+
+  navegador:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: pip install -r requirements.txt
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Subir a aplicação
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/e2e
+          AMBIENTE: dev
+          LIMITE_AUTH_POR_MIN: "1000"
+          WEBAUTHN_RP_ID: localhost
+          WEBAUTHN_ORIGENS: http://localhost:8000
+          EMAIL_PROVEDOR: arquivo   # os testes leem o código de acesso nesta pasta
+          EMAIL_PASTA: /tmp/emails-e2e
+        run: |
+          export JWT_SECRET="$(openssl rand -hex 32)" CHAVE_MENSAGENS="$(openssl rand -hex 32)" EMAIL_PEPPER="$(openssl rand -hex 32)" CHAVE_EMAIL="$(openssl rand -hex 32)"
+          nohup uvicorn app.main:app --port 8000 > uvicorn.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://localhost:8000/api/saude && break; sleep 1; done
+      - name: Testes no navegador (e-mail + biometria, fotos, chat efêmero, pânico, layout no celular)
+        env:
+          E2E_URL: http://localhost:8000
+          E2E_EMAILS: /tmp/emails-e2e
+        run: npm run e2e
+      - name: Log da aplicação (em caso de falha)
+        if: failure()
+        run: cat uvicorn.log
+
+  imagem:
+    needs: [lint, testes, auditoria, navegador]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build da imagem Docker (a mesma que o Render usa)
+        run: docker build -t afinidade:${{ github.sha }} .
+      - name: Smoke test do contêiner (sobe, migra o banco e responde)
+        run: |
+          docker run -d --name app --network host \
+            -e DATABASE_URL=postgresql://postgres:postgres@localhost:5432/app \
+            -e JWT_SECRET="$(openssl rand -hex 32)" -e CHAVE_MENSAGENS="$(openssl rand -hex 32)" \
+            -e AMBIENTE=producao -e PORT=8000 \
+            -e WEBAUTHN_RP_ID=localhost -e WEBAUTHN_ORIGENS=http://localhost:8000 \
+            -e EMAIL_PEPPER="$(openssl rand -hex 32)" -e CHAVE_EMAIL="$(openssl rand -hex 32)" -e EMAIL_PROVEDOR=resend -e RESEND_API_KEY=nao-usada-no-smoke-test \
+            afinidade:${{ github.sha }}
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/api/saude; then echo; break; fi
+            sleep 2
+          done
+          curl -fsS http://localhost:8000/api/saude > /dev/null
+          curl -fsSI http://localhost:8000/ | grep -i "content-security-policy"
+          # Em produção a documentação da API fica desligada
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/docs)" = "404"
+      - name: Logs do contêiner (em caso de falha)
+        if: failure()
+        run: docker logs app
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [imagem]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: producao
+      url: ${{ vars.APP_URL }}
+    concurrency:
+      group: afinidade-deploy
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: .  # este job não faz checkout
+    steps:
+      - name: Disparar deploy no Render
+        id: disparo
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::notice::RENDER_DEPLOY_HOOK_URL não configurado; deploy pulado."
+            echo "pulado=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null
+          echo "Deploy de ${{ github.sha }} solicitado."
+      - name: Aguardar a versão nova no ar
+        if: steps.disparo.outputs.pulado != 'true' && vars.APP_URL != ''
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          for i in $(seq 1 60); do
+            versao=$(curl -fsS "$APP_URL/api/saude" | python3 -c "import json,sys; print(json.load(sys.stdin)['versao'])" || true)
+            if [ "$versao" = "${{ github.sha }}" ]; then echo "No ar: $versao"; exit 0; fi
+            echo "Aguardando... (em produção: ${versao:-indisponível})"
+            sleep 15
+          done
+          echo "::error::A versão ${{ github.sha }} não entrou no ar em 15 minutos."
+          exit 1

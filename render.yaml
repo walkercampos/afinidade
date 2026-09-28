@@ -7,7 +7,7 @@ services:
     plan: free
     healthCheckPath: /api/saude
     # O deploy é disparado pela pipeline do GitHub Actions só depois que lint, testes e
-    # auditoria passam (veja .github/workflows/matchmaking.yml na raiz do repositório).
+    # auditoria passam (veja .github/workflows/ci.yml).
     autoDeploy: false
     envVars:
       - key: AMBIENTE

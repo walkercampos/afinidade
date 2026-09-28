@@ -96,7 +96,6 @@ para ver o código ou clicar no link. As passkeys funcionam em `http://localhost
 ## 2. Instalação
 
 ```bash
-cd matchmaking
 pip install -r requirements.txt            # inclui webauthn (py_webauthn); o e-mail usa só a biblioteca padrão
 pip install -r requirements-dev.txt        # testes, lint, auditoria
 npm ci && npx playwright install chromium  # só para os testes no navegador
