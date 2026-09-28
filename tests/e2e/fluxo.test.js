@@ -53,6 +53,19 @@ async function semRolagemHorizontal(pagina) {
   assert.ok(conteudo <= janela, `a página rola na horizontal (${conteudo}px > ${janela}px)`);
 }
 
+/** Regressão: o botão de pânico (fixo) não pode cobrir botões quando a página rola até o fim. */
+async function panicoNaoCobreBotoes(pagina) {
+  await pagina.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const cobertos = await pagina.evaluate(() => {
+    const p = document.querySelector("#panico").getBoundingClientRect();
+    return [...document.querySelectorAll("main button")].filter((b) => {
+      const r = b.getBoundingClientRect();
+      return r.width && !(r.right < p.left || r.left > p.right || r.bottom < p.top || r.top > p.bottom);
+    }).map((b) => b.textContent);
+  });
+  assert.deepEqual(cobertos, [], `o botão de pânico cobre: ${cobertos.join(", ")}`);
+}
+
 test("fotos borradas, pedido de acesso, conexão, chat efêmero e pânico", async () => {
   const leo = await novaPessoa(`leo_${sufixo}`, "homem-cis", "mulher-cis");
   const mar = await novaPessoa(`mar_${sufixo}`, "mulher-cis", "homem-cis");
@@ -64,6 +77,7 @@ test("fotos borradas, pedido de acesso, conexão, chat efêmero e pânico", asyn
   const cartaoMar = leo.pagina.locator(".cartao", { hasText: `mar_${sufixo}` });
   await cartaoMar.locator(".foto.borrada").waitFor();
   await semRolagemHorizontal(leo.pagina);
+  await panicoNaoCobreBotoes(leo.pagina);
   await cartaoMar.locator("text=Pedir para ver as fotos").click();
   await leo.pagina.waitForSelector("text=Pedido enviado");
   await cartaoMar.locator("button:has-text('Curtir')").click();
@@ -87,6 +101,7 @@ test("fotos borradas, pedido de acesso, conexão, chat efêmero e pânico", asyn
   assert.equal(await mar.pagina.textContent(".msg p"), "Oi! <b>sem html</b>");
   assert.equal(await mar.pagina.locator(".msg b").count(), 0);
   await leo.pagina.waitForSelector(".msg.minha .expira:has-text('some em')", { timeout: 10_000 });
+  await panicoNaoCobreBotoes(leo.pagina);
 
   // Pânico (ESC): some a tela, limpa o armazenamento, derruba a sessão e vai para o Google
   await mar.pagina.route("https://www.google.com/**", (r) => r.fulfill({ body: "<title>Google</title>", contentType: "text/html" }));

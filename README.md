@@ -6,6 +6,13 @@ Rede social adulta (18+) de conexões por afinidade, com foco em diversidade de 
 - **Para entender o projeto sem jargão:** [docs/relatorio.md](docs/relatorio.md)
 - **Para desenvolver:** [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/arquitetura.md](docs/arquitetura.md)
 - **Segurança:** [SECURITY.md](SECURITY.md) · **Próximos passos:** [docs/roadmap.md](docs/roadmap.md)
+- **Linguagem visual "Véu Luminoso":** [docs/design/](docs/design/filosofia-veu-luminoso.md)
+
+<p>
+  <img src="docs/design/tela-entrar.png" width="220" alt="Tela de entrada">
+  <img src="docs/design/tela-descobrir.png" width="220" alt="Descobrir, com foto borrada">
+  <img src="docs/design/tela-chat.png" width="220" alt="Chat efêmero com contagem regressiva">
+</p>
 
 ## O que o app faz
 

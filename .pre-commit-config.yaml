@@ -14,3 +14,4 @@ repos:
       - id: trailing-whitespace
       - id: detect-private-key
       - id: check-added-large-files
+        args: [--maxkb=2000]  # comporta as pranchas de docs/design; bloqueia dumps e binários grandes

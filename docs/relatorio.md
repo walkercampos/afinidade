@@ -128,6 +128,14 @@ vai para o ar sozinha.
 - No celular, alguns botões ficavam cortados para fora da tela.
 - O cálculo no banco arredondava diferente do cálculo de referência em casos de "meio" (12,5%).
 
+## Visual
+
+O app tem uma identidade própria, chamada **Véu Luminoso**: fundo noturno (discreto à noite e em
+lugares públicos), títulos numa serifa itálica elegante e um único tom de rosa reservado para o que é
+"revelado" (a afinidade, os interesses em comum, o botão principal). Ao fundo, uma grade quase invisível
+lembra os quadrados de ~5 km da localização. A fonte fica guardada no próprio app, sem depender de
+serviços de fora. O manifesto e a prancha que inspiraram o visual estão em [design/](design/).
+
 ## Para quem vai programar
 
 O projeto segue regras para facilitar a manutenção por outras pessoas: cada assunto tem seu próprio
