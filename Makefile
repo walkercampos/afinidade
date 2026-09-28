@@ -26,10 +26,17 @@ formatar: ## Corrige automaticamente o que o lint consegue
 testar: ## Roda todos os testes (o banco de teste é APAGADO)
 	TEST_DATABASE_URL=$(TEST_DATABASE_URL) pytest -q --cov
 
+testar-js: ## Testes unitários do front-end (precisa só do Node)
+	npm test
+
+e2e: ## Testes no navegador (precisa da API rodando: make rodar em outro terminal)
+	npm ci && npx playwright install chromium
+	E2E_URL=http://localhost:8000 npm run e2e
+
 auditar: ## Procura vulnerabilidades conhecidas nas dependências
 	pip-audit -r requirements.txt
 
-verificar: lint testar auditar ## Tudo o que o CI roda
+verificar: lint testar testar-js auditar ## Tudo o que o CI roda
 
 migracao: ## Cria o arquivo da próxima migração: make migracao nome=descricao_curta
 	@test -n "$(nome)" || (echo "use: make migracao nome=descricao_curta" && exit 1)
@@ -39,4 +46,4 @@ migracao: ## Cria o arquivo da próxima migração: make migracao nome=descricao
 moderador: ## Dá o papel de moderador(a): make moderador apelido=fulano
 	python -m app.admin moderador $(apelido)
 
-.PHONY: ajuda instalar db rodar lint formatar testar auditar verificar migracao moderador
+.PHONY: ajuda instalar db rodar lint formatar testar testar-js e2e auditar verificar migracao moderador

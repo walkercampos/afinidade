@@ -1,0 +1,13 @@
+{
+  "name": "afinidade-front",
+  "private": true,
+  "type": "module",
+  "description": "Front-end sem build: o Node só roda os testes (unitários e no navegador).",
+  "scripts": {
+    "test": "node --test \"tests/js/*.test.js\"",
+    "e2e": "node --test --test-concurrency=1 \"tests/e2e/*.test.js\""
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

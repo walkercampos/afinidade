@@ -64,8 +64,8 @@ button {
 button.secundario { background: transparent; color: var(--texto); border: 1px solid var(--borda); }
 button.perigo { background: var(--perigo); }
 button:disabled { opacity: .6; cursor: default; }
-.acoes { display: flex; gap: 8px; margin-top: 12px; }
-.acoes button { flex: 1; }
+.acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.acoes button { flex: 1 1 120px; }
 
 .abas { display: flex; gap: 4px; background: var(--superficie); border: 1px solid var(--borda); border-radius: 12px; padding: 4px; margin-bottom: 16px; }
 .abas button { flex: 1; background: transparent; color: var(--suave); }
@@ -106,3 +106,37 @@ button:disabled { opacity: .6; cursor: default; }
   .cartao { animation: surgir .18s ease-out; }
   @keyframes surgir { from { opacity: 0; transform: translateY(4px); } }
 }
+
+/* ---------- saída rápida (pânico) ---------- */
+.panico {
+  position: fixed; z-index: 30; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom));
+  width: 52px; height: 52px; min-height: 0; padding: 0; border-radius: 50%;
+  background: #d92d20; color: #fff; font-size: 1.3rem; line-height: 1;
+  box-shadow: 0 4px 14px rgb(0 0 0 / .3);
+}
+@media (min-width: 720px) { .panico { bottom: 24px; } }
+
+/* ---------- fotos ---------- */
+.fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin: 10px 0; }
+.moldura { position: relative; overflow: hidden; border-radius: 10px; aspect-ratio: 4 / 5; background: var(--borda); }
+.foto { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* A imagem já chega borrada do servidor; o CSS só suaviza os blocos da miniatura. */
+.foto.borrada { filter: blur(14px) saturate(.8); transform: scale(1.15); }
+.moldura .remover { position: absolute; left: 6px; right: 6px; bottom: 6px; min-height: 32px; padding: 4px; font-size: .8rem;
+  background: rgb(0 0 0 / .55); color: #fff; border: 0; }
+
+/* ---------- descoberta ---------- */
+.titulo-com-acao { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 12px; }
+.titulo-com-acao select { width: auto; max-width: 100%; }
+
+/* ---------- denúncia ---------- */
+.denuncia { border-top: 1px solid var(--borda); margin-top: 12px; padding-top: 4px; }
+.denuncia select, .denuncia textarea { margin-top: 6px; }
+
+/* ---------- chat ---------- */
+.mensagens { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 8px; }
+.msg { max-width: 80%; align-self: flex-start; background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: 14px 14px 14px 4px; padding: 8px 12px; }
+.msg.minha { align-self: flex-end; background: var(--destaque); color: #fff; border-color: transparent; border-radius: 14px 14px 4px 14px; }
+.msg p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg .expira { display: block; font-size: .7rem; opacity: .75; margin-top: 2px; }
