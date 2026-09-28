@@ -11,7 +11,7 @@ para manter no ar.
 1. **Cria a conta com o e-mail:** recebe um código de 6 dígitos (ou um link) e confirma. Não existe
    senha. Logo depois, o app oferece **ativar a biometria**: das próximas vezes, a pessoa entra só com a
    digital, o rosto ou o PIN do celular. Se não quiser inventar um apelido, o app gera um
-   (tipo `anon_k3v9x2mq`). Não pedimos e-mail, telefone, nome nem foto. A pessoa confirma que tem
+   (tipo `anon_k3v9x2mq`). Não pedimos telefone, nome real nem foto. A pessoa confirma que tem
    18 anos ou mais e que aceita o uso dos dados sobre sexualidade para encontrar compatibilidades.
 2. **Monta o perfil:** um nome de exibição (pode ser inventado), o próprio gênero, os gêneros que busca e,
    para cada prática da lista, marca **Quero**, **Curioso(a)** ou **Limite** (nunca).
@@ -78,7 +78,7 @@ menos de um instante:
 
 1. apaga o conteúdo da tela;
 2. limpa o que o navegador guardou do site;
-3. encerra a sessão no servidor (quem pegar o aparelho precisa da senha para entrar de novo);
+3. encerra a sessão no servidor (quem pegar o aparelho precisa da biometria ou de um código do e-mail para entrar de novo);
 4. troca a página pelo Google, sem deixar o app no botão "voltar".
 
 ## Segurança contra ataques
@@ -103,6 +103,14 @@ menos de um instante:
   Enquanto isso, a conta não pode curtir nem mandar mensagens.
 - **Moderadores** veem a fila de denúncias e decidem banir ou restaurar. Toda decisão fica registrada.
 
+## Falar com a pessoa
+
+O app consegue mandar um e-mail para qualquer conta (por exemplo, um aviso da moderação) **sem que
+ninguém veja o endereço**: ele só é aberto dentro do servidor, na hora do envio. Todo contato fica
+registrado (quem enviou, quando e o assunto). A própria pessoa vê o e-mail mascarado na tela Conta
+(ex.: `c****@gmail.com`). Pela LGPD, o e-mail é usado só para acesso, recuperação e avisos sobre a
+conta; propaganda exigiria um consentimento à parte.
+
 ## Custo zero: onde o app roda
 
 | O quê | Onde | Custo |
@@ -110,16 +118,20 @@ menos de um instante:
 | Código, testes e publicação automática | GitHub | grátis |
 | O app em si | Render | grátis (depois de um tempo sem uso, o primeiro acesso demora alguns segundos) |
 | Banco de dados | Neon | grátis |
+| E-mails de acesso e avisos | Resend (ou qualquer SMTP) | grátis |
 
 Quando alguém aprova uma mudança na versão principal do código, ela é testada e, se tudo passar,
 vai para o ar sozinha.
 
 ## Qualidade: como sabemos que funciona
 
-- **88 testes automáticos do servidor**, cobrindo 97% do código (o mínimo exigido é 90%).
-- **7 testes das funções do site** e **3 testes que abrem um navegador de verdade** e fazem o caminho
-  de duas pessoas: cadastro, fotos borradas, pedido de acesso, conexão, chat com contagem regressiva
-  e botão de pânico, tudo numa tela de celular.
+- **154 testes automáticos do servidor**, cobrindo 98% do código (o mínimo exigido é 90%).
+- **11 testes das funções do site** e **5 testes que abrem um navegador de verdade** numa tela de
+  celular: cadastro pelo e-mail lendo o código da "caixa de entrada", ativar a biometria e entrar só
+  com ela (com um celular simulado), o link do e-mail, fotos borradas e pedido de acesso, conexão,
+  chat com contagem regressiva, botão de pânico e troca rápida de telas.
+- A biometria é testada com **criptografia de verdade**, inclusive tentativas de ataque: site falso,
+  reaproveitar uma assinatura, chave clonada, chave de outra pessoa.
 - Um teste compara, em 60 perfis sorteados, a conta feita no banco com a conta de referência, para
   garantir que dão o mesmo resultado.
 - A cada mudança e **todo dia de manhã**, uma esteira automática roda: padrão de código, todos os
@@ -128,11 +140,13 @@ vai para o ar sozinha.
 
 **Erros que os testes pegaram e já foram corrigidos:**
 
+- **Segurança:** errar o código do e-mail não era contado (o banco desfazia a contagem), então dava
+  para tentar sem limite. Corrigido e protegido por teste.
 - Um apelido digitado com letra maiúscula (ex.: "Fulano") era recusado em vez de aceito.
 - A tela de Conexões mostrava um texto técnico ("[object HTMLElement]") no lugar dos perfis.
 - Trocar de tela rápido podia fazer uma tela antiga aparecer por cima da nova.
 - Salvar o perfil pela primeira vez e sair logo em seguida puxava a pessoa de volta para o perfil.
-- No celular, alguns botões ficavam cortados para fora da tela.
+- No celular, alguns botões ficavam cortados ou cobertos pelo botão de pânico.
 - O cálculo no banco arredondava diferente do cálculo de referência em casos de "meio" (12,5%).
 
 ## Visual
@@ -169,7 +183,13 @@ A lista completa, inspirada no pH7Builder, está em [roadmap.md](roadmap.md).
   texto reaproveitado de outra rede pode identificar alguém.
 - O chat é cifrado no servidor, mas **não "ponta a ponta"**: quem controla o servidor poderia, em tese,
   ler as mensagens durante os 5 minutos de vida delas.
-- **Guarde bem a `CHAVE_MENSAGENS`.** Se ela se perder, mensagens e fotos existentes não podem mais ser abertas.
+- **Guarde bem as chaves** (no painel do Render e num backup seguro). Nenhuma delas pode ser trocada
+  depois de haver usuários:
+  - se a `CHAVE_MENSAGENS` se perder, mensagens e fotos existentes não podem mais ser abertas;
+  - sem a `CHAVE_EMAIL`, o app não consegue mais mandar avisos;
+  - sem o `EMAIL_PEPPER`, ninguém é mais encontrado pelo e-mail.
+- O provedor de e-mail vê o destinatário e o código de acesso. O texto do e-mail é neutro e não
+  menciona o app.
 
 ## Pequeno glossário
 
@@ -177,7 +197,8 @@ A lista completa, inspirada no pH7Builder, está em [roadmap.md](roadmap.md).
 |---|---|
 | API / servidor | A parte do app que roda "na nuvem" e guarda os dados |
 | Banco de dados | Onde as informações ficam salvas (aqui, PostgreSQL) |
-| Cifrar | Embaralhar com uma chave secreta, para ninguém sem a chave conseguir ler |
+| Cifrar / criptografar | Embaralhar com uma chave secreta, para ninguém sem a chave conseguir ler |
+| Passkey / biometria | Forma de entrar com a digital, o rosto ou o PIN, sem senha; a digital nunca sai do celular |
 | Deploy | Colocar uma nova versão do app no ar |
 | CI/CD, pipeline, esteira | Sequência automática que testa e publica o app a cada mudança |
 | Teste automático | Um pequeno programa que usa o app e confere se o resultado está certo |
