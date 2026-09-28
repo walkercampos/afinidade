@@ -1,7 +1,7 @@
 import pytest
 
 from app import admin
-from tests.conftest import SENHA
+from tests.conftest import entrar_por_email
 
 
 @pytest.fixture
@@ -65,7 +65,7 @@ def test_banir_derruba_sessoes_e_login(pessoa, client, moderador):
     r = moderador.post(f"/api/moderacao/contas/{alvo.id}/decisao", json={"acao": "banir", "observacao": "fake"})
     assert r.status_code == 204
     assert alvo.get("/api/perfil").status_code == 401
-    assert client.post("/api/auth/login", json={"handle": alvo.handle, "senha": SENHA}).status_code == 403
+    assert entrar_por_email(client, alvo.email).status_code == 403
 
 
 def test_rotas_de_moderacao_invisiveis_para_usuarios(pessoa):

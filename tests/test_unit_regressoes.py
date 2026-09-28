@@ -56,7 +56,26 @@ def test_perfil_sem_interesses_nao_divide_por_zero():
 
 def test_apelido_e_tag_com_maiusculas_sao_normalizados_antes_de_validar():
     # O pattern era checado antes do lower(): "Fulano_1" dava 422 no cadastro/login.
-    from app.schemas import Login, TagsInteresses
+    from app.schemas import Cadastro, TagsInteresses
 
-    assert Login(handle=" Fulano_1 ", senha="x").handle == "fulano_1"
+    c = Cadastro(
+        email="a@b.co",
+        handle=" Fulano_1 ",
+        data_nascimento="1990-01-01",
+        confirmo_maior_de_idade=True,
+        consinto_dados_sensiveis=True,
+    )
+    assert c.handle == "fulano_1"
     assert TagsInteresses(quero=["Bondage"]).quero == ["bondage"]
+
+
+def test_tentativas_de_codigo_sao_gravadas_mesmo_recusando():
+    # O erro era lançado dentro da transação: o rollback desfazia o contador de tentativas e o
+    # código de 6 dígitos ficava com tentativas ilimitadas (força bruta). Coberto de ponta a ponta
+    # em tests/test_email.py::test_codigo_errado_tem_limite_de_tentativas; aqui, a regra no código:
+    import inspect
+
+    from app import verificacao
+
+    fonte = inspect.getsource(verificacao.confirmar_codigo)
+    assert fonte.rstrip().endswith("raise VerificacaoInvalida(erro)")

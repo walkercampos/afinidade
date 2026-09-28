@@ -72,13 +72,6 @@ async function noAparelho(acao) {
   }
 }
 
-/** Cria a conta sem senha: o servidor só cria a conta depois de validar a passkey. */
-export async function cadastrarComPasskey(dados) {
-  const { desafio_id, opcoes } = await api("/auth/passkey/registro/opcoes", { metodo: "POST", corpo: dados });
-  const credencial = await noAparelho(() => navigator.credentials.create({ publicKey: opcoesDeCriacao(opcoes) }));
-  return api("/auth/passkey/registro", { metodo: "POST", corpo: { desafio_id, credencial } });
-}
-
 /** Entra sem digitar nada: o aparelho mostra as passkeys que tem para este site. */
 export async function entrarComPasskey() {
   const { desafio_id, opcoes } = await api("/auth/passkey/login/opcoes", { metodo: "POST" });
@@ -91,3 +84,11 @@ export async function adicionarPasskey(nome) {
   const credencial = await noAparelho(() => navigator.credentials.create({ publicKey: opcoesDeCriacao(opcoes) }));
   return api("/passkeys", { metodo: "POST", corpo: { desafio_id, credencial, nome: nome || null } });
 }
+
+// ---------- e-mail (código de 6 dígitos ou link) ----------
+
+export const pedirCodigoCadastro = (dados) => api("/auth/email/cadastro", { metodo: "POST", corpo: dados });
+export const pedirCodigoEntrar = (email) => api("/auth/email/entrar", { metodo: "POST", corpo: { email } });
+export const confirmarCodigo = (verificacao_id, codigo) =>
+  api("/auth/email/confirmar", { metodo: "POST", corpo: { verificacao_id, codigo } });
+export const confirmarLink = (token) => api("/auth/email/link", { metodo: "POST", corpo: { token } });

@@ -1,49 +1,125 @@
+"""Acesso sem senha: e-mail (código de 6 dígitos ou link) para criar a conta e para recuperar o
+acesso; depois, biometria com passkey (ver routes/passkeys.py) para o dia a dia."""
+
+import json
+import logging
+import uuid
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 
 from .. import repository as repo
+from .. import verificacao as verif
 from ..config import config
 from ..db import conexao
+from ..email import FalhaNoEnvio, mensagem_de_acesso
 from ..ratelimit import exigir_limite, ip_do_cliente
-from ..schemas import Login, Registro, Token
-from ..security import (
-    HASH_FALSO,
-    apagar_cookie_sessao,
-    conta_atual,
-    gerar_hash_senha,
-    iniciar_sessao,
-    verificar_senha,
-)
+from ..schemas import Cadastro, ConfirmarCodigo, ConfirmarLink, PedidoEntrar, Token, VerificacaoEnviada
+from ..security import apagar_cookie_sessao, conta_atual, iniciar_sessao
 
 router = APIRouter(tags=["autenticação"])
+log = logging.getLogger("matchmaking.auth")
+
+ENVIOS_POR_EMAIL_POR_HORA = 5
 
 
-@router.post("/auth/registro", response_model=Token, status_code=status.HTTP_201_CREATED)
-async def registrar(dados: Registro, request: Request, response: Response, con=Depends(conexao)):
+async def _entregar(carteiro, mensagem) -> None:
+    try:
+        await carteiro.enviar(mensagem)
+    except FalhaNoEnvio:
+        log.exception("Falha ao enviar e-mail de acesso")  # a pessoa pode pedir outro código
+
+
+async def _enviar_codigo(
+    request: Request, tarefas: BackgroundTasks, con, email: str, email_hash: bytes, *, conta_id=None, dados=None
+) -> UUID:
+    verificacao_id, codigo, token = await verif.criar(
+        con, config().email_pepper, email_hash, conta_id=conta_id, dados=dados
+    )
+    # O token vai no fragmento (#): navegadores não o enviam a servidores nem em Referer.
+    link = f"{config().email.app_url}/#/verificar/{token}"
+    # Envio DEPOIS da resposta: o tempo de resposta não revela se o e-mail tem conta.
+    tarefas.add_task(_entregar, request.app.state.carteiro, mensagem_de_acesso(email, codigo, link))
+    return verificacao_id
+
+
+def _limites(request: Request, email_hash: bytes) -> None:
     exigir_limite("auth", config().limite_auth_por_min, ip_do_cliente(request))
-    criada = await repo.criar_conta_anonima(con, dados.handle, gerar_hash_senha(dados.senha))
+    # Impede usar o app para bombardear a caixa de alguém.
+    exigir_limite("email", ENVIOS_POR_EMAIL_POR_HORA, email_hash.hex(), janela_s=3600, anonimizar=False)
+
+
+@router.post("/auth/email/cadastro", response_model=VerificacaoEnviada, status_code=status.HTTP_202_ACCEPTED)
+async def cadastro(dados: Cadastro, request: Request, tarefas: BackgroundTasks, con=Depends(conexao)):
+    """Envia o código para criar a conta. Se o e-mail já tem conta, o código serve para entrar
+    nela: a resposta é a mesma, então ninguém descobre quais e-mails estão cadastrados."""
+    email_hash = verif.hash_email(config().email_pepper, dados.email)
+    _limites(request, email_hash)
+    existente = await repo.buscar_conta_por_email(con, email_hash)
+    if existente:
+        verificacao_id = await _enviar_codigo(request, tarefas, con, dados.email, email_hash, conta_id=existente["id"])
+    else:
+        if dados.handle and await repo.buscar_conta_por_handle(con, dados.handle):
+            raise HTTPException(status.HTTP_409_CONFLICT, "Apelido já em uso")
+        pendente = {"handle": dados.handle}
+        verificacao_id = await _enviar_codigo(request, tarefas, con, dados.email, email_hash, dados=pendente)
+    return VerificacaoEnviada(verificacao_id=verificacao_id)
+
+
+@router.post("/auth/email/entrar", response_model=VerificacaoEnviada, status_code=status.HTTP_202_ACCEPTED)
+async def entrar(dados: PedidoEntrar, request: Request, tarefas: BackgroundTasks, con=Depends(conexao)):
+    """Envia um código de acesso (útil em aparelho novo ou para recuperar a conta)."""
+    email_hash = verif.hash_email(config().email_pepper, dados.email)
+    _limites(request, email_hash)
+    existente = await repo.buscar_conta_por_email(con, email_hash)
+    if existente is None:
+        # Sem conta: nada é enviado, mas a resposta tem o mesmo formato (id que não existe).
+        return VerificacaoEnviada(verificacao_id=uuid.uuid4())
+    verificacao_id = await _enviar_codigo(request, tarefas, con, dados.email, email_hash, conta_id=existente["id"])
+    return VerificacaoEnviada(verificacao_id=verificacao_id)
+
+
+async def _concluir(con, response: Response, linha) -> dict:
+    """Verificação válida: entra na conta existente ou cria a conta nova."""
+    if linha["conta_id"] is not None:
+        conta = await repo.buscar_conta(con, linha["conta_id"])
+        if conta is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Conta não encontrada")
+        if conta["situacao"] == "banida":
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Conta banida por violar as regras da comunidade")
+        return iniciar_sessao(response, conta["id"], conta["token_versao"], conta["handle"])
+
+    pendente = json.loads(linha["dados"])
+    try:
+        criada = await repo.criar_conta_anonima(con, pendente["handle"], linha["email_hash"])
+    except repo.EmailJaCadastrado:
+        # Outra verificação do mesmo e-mail criou a conta antes: quem tem o código entra nela.
+        conta = await repo.buscar_conta_por_email(con, linha["email_hash"])
+        return iniciar_sessao(response, conta["id"], conta["token_versao"], conta["handle"])
     if criada is None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Apelido já em uso")
+        raise HTTPException(status.HTTP_409_CONFLICT, "Apelido já em uso. Recomece o cadastro com outro.")
     conta_id, handle = criada
-    return iniciar_sessao(response, conta_id, 0, handle)
+    return iniciar_sessao(response, conta_id, 0, handle, novo=True)
 
 
-@router.post("/auth/login", response_model=Token)
-async def login(dados: Login, request: Request, response: Response, con=Depends(conexao)):
-    cfg = config()
-    exigir_limite("auth", cfg.limite_auth_por_min, ip_do_cliente(request))
-    # Também por apelido: impede força bruta distribuída em vários IPs contra uma conta.
-    exigir_limite("login-handle", cfg.limite_auth_por_min, dados.handle)
-    conta = await repo.buscar_conta_por_handle(con, dados.handle)
-    # Contas só com passkey não têm senha: comparamos com o hash falso (mesmo tempo de resposta).
-    armazenado = conta["senha_hash"] if conta and conta["senha_hash"] else HASH_FALSO
-    senha_ok = verificar_senha(dados.senha, armazenado)
-    if conta is None or not conta["senha_hash"] or not senha_ok:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciais inválidas")
-    if conta["situacao"] == "banida":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Conta banida por violar as regras da comunidade")
-    return iniciar_sessao(response, conta["id"], conta["token_versao"], dados.handle)
+@router.post("/auth/email/confirmar", response_model=Token)
+async def confirmar(dados: ConfirmarCodigo, request: Request, response: Response, con=Depends(conexao)):
+    exigir_limite("auth", config().limite_auth_por_min, ip_do_cliente(request))
+    try:
+        linha = await verif.confirmar_codigo(con, config().email_pepper, dados.verificacao_id, dados.codigo)
+    except verif.VerificacaoInvalida as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
+    return await _concluir(con, response, linha)
+
+
+@router.post("/auth/email/link", response_model=Token)
+async def link(dados: ConfirmarLink, request: Request, response: Response, con=Depends(conexao)):
+    exigir_limite("auth", config().limite_auth_por_min, ip_do_cliente(request))
+    try:
+        linha = await verif.confirmar_token(con, dados.token)
+    except verif.VerificacaoInvalida as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
+    return await _concluir(con, response, linha)
 
 
 @router.post("/auth/sair", status_code=status.HTTP_204_NO_CONTENT)

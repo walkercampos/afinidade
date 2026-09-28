@@ -19,6 +19,17 @@ services:
         generateValue: true
       - key: DATABASE_URL
         sync: false
+      # E-mail: o e-mail das pessoas só é guardado como HMAC com esta chave. NÃO troque depois
+      # (quem tem conta deixaria de ser encontrado pelo e-mail).
+      - key: EMAIL_PEPPER
+        generateValue: true
+      - key: EMAIL_PROVEDOR
+        value: resend
+      # Chave da API do Resend (resend.com → API Keys) e o remetente de um domínio verificado lá.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_REMETENTE
+        sync: false
       # Passkeys: o domínio exato do app, sem https:// (ex.: afinidade.onrender.com) ...
       - key: WEBAUTHN_RP_ID
         sync: false

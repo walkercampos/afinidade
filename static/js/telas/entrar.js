@@ -1,90 +1,82 @@
-import { api, cadastrarComPasskey, entrarComPasskey, suportaPasskeys } from "../api.js";
+// Acesso sem senha: a conta nasce pelo e-mail (código de 6 dígitos); depois, biometria (passkey).
+import {
+  confirmarCodigo, entrarComPasskey, pedirCodigoCadastro, pedirCodigoEntrar, suportaPasskeys,
+} from "../api.js";
 import { formulario, h } from "../dom.js";
 import { irPara } from "../roteador.js";
 
-const campoApelido = (obrigatorio) => [
-  h("label", { for: "handle" }, obrigatorio ? "Apelido" : "Apelido (opcional)"),
-  h("input", { id: "handle", name: "handle", type: "text", required: obrigatorio, autocomplete: "username",
-    autocapitalize: "none", spellcheck: "false", pattern: "[a-zA-Z0-9_]{3,30}", maxlength: 30 }),
+const campoEmail = () => [
+  h("label", { for: "email" }, "E-mail"),
+  h("input", { id: "email", name: "email", type: "email", required: true, autocomplete: "email",
+    autocapitalize: "none", spellcheck: "false", maxlength: 254 }),
 ];
 
-function botaoPasskey(texto, acao) {
-  const erro = h("p", { class: "erro", role: "alert" });
-  const botao = h("button", { type: "button", class: "passkey", onclick: async () => {
-    botao.disabled = true;
-    erro.textContent = "";
-    try { await acao(); } catch (e) { erro.textContent = e.message; } finally { botao.disabled = false; }
-  } }, texto);
-  return h("div", { class: "bloco-passkey" }, botao, erro);
-}
-
-function formEntrar() {
-  const comSenha = formulario(async (f) => {
-    await api("/auth/login", { metodo: "POST", corpo: { handle: f.get("handle"), senha: f.get("senha") } });
-    irPara("descobrir");
-  },
-  ...campoApelido(true),
-  h("label", { for: "senha" }, "Senha"),
-  h("input", { id: "senha", name: "senha", type: "password", required: true, autocomplete: "current-password" }),
-  h("div", { class: "acoes" }, h("button", { type: "submit", class: suportaPasskeys() ? "secundario" : "" }, "Entrar com senha")));
-
-  if (!suportaPasskeys()) return comSenha;
-  return h("div", {},
-    botaoPasskey("Entrar com passkey", async () => { await entrarComPasskey(); irPara("descobrir"); }),
-    h("p", { class: "nota" }, "Sem digitar nada: use a digital, o rosto ou o PIN do seu aparelho."),
-    h("p", { class: "separador" }, "ou com apelido e senha"),
-    comSenha);
-}
-
-function formCriar() {
-  const passkey = suportaPasskeys();
-  let modo = passkey ? "passkey" : "senha";
-  const senha = h("input", { id: "senha", name: "senha", type: "password", minlength: 10, maxlength: 128,
-    autocomplete: "new-password" });
-  const blocoSenha = h("div", {},
-    h("label", { for: "senha" }, "Senha"), senha,
-    h("p", { class: "nota" }, "Mínimo de 10 caracteres. Sem e-mail não há recuperação de senha: guarde-a num gerenciador."));
-  const enviar = h("button", { type: "submit" });
-  const alternar = h("button", { type: "button", class: "link", onclick: () => { modo = modo === "passkey" ? "senha" : "passkey"; aplicar(); } });
-  const explicacaoPasskey = h("p", { class: "nota" },
-    "Com passkey não existe senha para vazar ou esquecer: você entra com a digital, o rosto ou o PIN deste aparelho. "
-    + "Passkeys salvas no iCloud ou no Google aparecem nos seus outros aparelhos.");
-
-  function aplicar() {
-    const comSenha = modo === "senha";
-    blocoSenha.hidden = !comSenha;
-    senha.required = comSenha;
-    explicacaoPasskey.hidden = comSenha;
-    enviar.textContent = comSenha ? "Criar conta com senha" : "Criar conta com passkey";
-    alternar.textContent = comSenha ? "Prefiro usar passkey (sem senha)" : "Prefiro criar com senha";
-    alternar.hidden = !passkey;
-  }
-
+/** Segunda etapa: digitar o código que chegou por e-mail. */
+function etapaCodigo(area, email, verificacaoId, reenviar) {
   const form = formulario(async (f) => {
-    const dados = {
-      handle: f.get("handle") || null, data_nascimento: f.get("nascimento"),
-      confirmo_maior_de_idade: f.get("maior") === "on", consinto_dados_sensiveis: f.get("consinto") === "on",
-    };
-    const { handle } = modo === "passkey"
-      ? await cadastrarComPasskey(dados)
-      : await api("/auth/registro", { metodo: "POST", corpo: { ...dados, senha: f.get("senha") } });
-    if (!f.get("handle")) alert(`Seu apelido é ${handle}\n\nÉ assim que as pessoas vão te ver até você escolher um nome.`);
-    irPara("perfil");
+    const r = await confirmarCodigo(verificacaoId, f.get("codigo"));
+    irPara(r.novo && suportaPasskeys() ? "biometria" : "descobrir");
   },
-  h("p", { class: "nota" }, "Não pedimos e-mail, telefone nem nome real."),
-  ...campoApelido(false),
-  h("p", { class: "nota" }, "Deixe em branco para receber um apelido aleatório. Não use o mesmo de outras redes."),
+  h("p", { class: "nota" }, "Enviamos um código de 6 dígitos para ", h("strong", {}, email),
+    ". Ele vale por 15 minutos. Também dá para abrir o link do e-mail neste aparelho."),
+  h("label", { for: "codigo" }, "Código"),
+  h("input", { id: "codigo", name: "codigo", required: true, inputmode: "numeric", autocomplete: "one-time-code",
+    pattern: "\\d{6}", maxlength: 6, class: "codigo" }),
+  h("div", { class: "acoes" }, h("button", { type: "submit" }, "Confirmar")),
+  h("button", { type: "button", class: "link", onclick: reenviar }, "Não chegou? Enviar outro código"));
+  area.replaceChildren(form);
+  form.querySelector("#codigo").focus();
+}
+
+function formEntrar(area) {
+  const pedir = async (email) => {
+    const { verificacao_id } = await pedirCodigoEntrar(email);
+    etapaCodigo(area, email, verificacao_id, () => pedir(email));
+  };
+  const porEmail = formulario(async (f) => pedir(f.get("email")),
+    ...campoEmail(),
+    h("div", { class: "acoes" },
+      h("button", { type: "submit", class: suportaPasskeys() ? "secundario" : "" }, "Receber código por e-mail")));
+
+  if (!suportaPasskeys()) return porEmail;
+  const erro = h("p", { class: "erro", role: "alert" });
+  const bio = h("button", { type: "button", class: "passkey", onclick: async () => {
+    bio.disabled = true;
+    erro.textContent = "";
+    try { await entrarComPasskey(); irPara("descobrir"); } catch (e) { erro.textContent = e.message; } finally { bio.disabled = false; }
+  } }, "Entrar com biometria");
+  return h("div", {},
+    h("div", { class: "bloco-passkey" }, bio, erro),
+    h("p", { class: "nota" }, "Digital, rosto ou PIN do aparelho em que você ativou a biometria."),
+    h("p", { class: "separador" }, "aparelho novo? receba um código"),
+    porEmail);
+}
+
+function formCriar(area) {
+  const pedir = async (dados) => {
+    const { verificacao_id } = await pedirCodigoCadastro(dados);
+    etapaCodigo(area, dados.email, verificacao_id, () => pedir(dados));
+  };
+  return formulario(async (f) => pedir({
+    email: f.get("email"), handle: f.get("handle") || null, data_nascimento: f.get("nascimento"),
+    confirmo_maior_de_idade: f.get("maior") === "on", consinto_dados_sensiveis: f.get("consinto") === "on",
+  }),
+  ...campoEmail(),
+  h("p", { class: "nota" },
+    "Seu e-mail nunca aparece para ninguém e fica guardado embaralhado: nem nós conseguimos lê-lo. "
+    + "Serve só para confirmar a conta e recuperar o acesso. Para mais discrição, use um e-mail só para isso "
+    + "ou um alias (Ocultar meu e-mail do iCloud, Firefox Relay)."),
+  h("label", { for: "handle" }, "Apelido (opcional)"),
+  h("input", { id: "handle", name: "handle", type: "text", autocomplete: "nickname", autocapitalize: "none",
+    spellcheck: "false", pattern: "[a-zA-Z0-9_]{3,30}", maxlength: 30 }),
+  h("p", { class: "nota" }, "Em branco, você recebe um apelido aleatório. Não use o mesmo de outras redes."),
   h("label", { for: "nascimento" }, "Data de nascimento"),
   h("input", { id: "nascimento", name: "nascimento", type: "date", required: true }),
   h("p", { class: "nota" }, "Usada só para confirmar a maioridade. Não é armazenada."),
   h("label", { class: "check" }, h("input", { type: "checkbox", name: "maior", required: true }), "Tenho 18 anos ou mais."),
   h("label", { class: "check" }, h("input", { type: "checkbox", name: "consinto", required: true }),
     "Consinto com o tratamento dos meus dados sobre sexualidade para gerar compatibilidades. Posso excluir tudo a qualquer momento."),
-  blocoSenha, explicacaoPasskey,
-  h("div", { class: "acoes" }, enviar),
-  alternar);
-  aplicar();
-  return form;
+  h("div", { class: "acoes" }, h("button", { type: "submit" }, "Enviar código de confirmação")));
 }
 
 export function telaEntrar(_parametro, ctx) {
@@ -94,7 +86,7 @@ export function telaEntrar(_parametro, ctx) {
   function trocar(modo) {
     abaEntrar.setAttribute("aria-selected", modo === "entrar");
     abaCriar.setAttribute("aria-selected", modo === "criar");
-    area.replaceChildren(modo === "entrar" ? formEntrar() : formCriar());
+    area.replaceChildren(modo === "entrar" ? formEntrar(area) : formCriar(area));
   }
   ctx.mostrar(h("h1", {}, "Conexões por afinidade, sem expor quem você é"),
     h("p", { class: "nota" }, "Em qualquer tela, aperte ESC ou o botão vermelho para sair na hora."),

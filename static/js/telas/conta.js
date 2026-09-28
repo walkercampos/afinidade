@@ -7,10 +7,10 @@ const data = (iso) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "nunca"
 async function secaoPasskeys() {
   const lista = await api("/passkeys");
   const secao = h("section", { class: "cartao" },
-    h("h2", {}, "Passkeys"),
+    h("h2", {}, "Biometria (passkeys)"),
     h("p", { class: "nota" }, lista.length
-      ? "Entre com a digital, o rosto ou o PIN. Tenha pelo menos duas (ex.: celular e computador) para não perder o acesso."
-      : "Adicione uma passkey para entrar sem senha, com a digital, o rosto ou o PIN do aparelho."),
+      ? "Você entra com a digital, o rosto ou o PIN destes aparelhos. Perdeu um? Entre por e-mail e remova-o aqui."
+      : "Ative a biometria para entrar com a digital, o rosto ou o PIN, sem esperar código por e-mail."),
     h("ul", { class: "lista-passkeys" }, lista.map((p) => h("li", {},
       h("div", {},
         h("strong", {}, p.nome),
@@ -27,7 +27,7 @@ async function secaoPasskeys() {
         avisar("Passkey adicionada");
         secao.replaceWith(await secaoPasskeys());
       } catch (e) { avisar(e.message); }
-    } }, "Adicionar passkey neste aparelho")));
+    } }, "Ativar biometria neste aparelho")));
   return secao;
 }
 

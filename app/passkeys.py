@@ -215,20 +215,9 @@ async def ids_da_conta(con, conta_id: UUID) -> list[bytes]:
     return [linha["id"] for linha in await con.fetch("SELECT id FROM passkeys WHERE conta_id = $1", conta_id)]
 
 
-async def apagar(con, conta_id: UUID, credencial_id: bytes) -> str:
-    """'apagada', 'inexistente' ou 'ultima' (não deixa a conta sem nenhuma forma de entrar)."""
-    async with con.transaction():
-        conta = await con.fetchrow("SELECT senha_hash FROM contas WHERE id = $1 FOR UPDATE", conta_id)
-        total = await con.fetchval("SELECT count(*) FROM passkeys WHERE conta_id = $1", conta_id)
-        existe = await con.fetchval(
-            "SELECT EXISTS (SELECT 1 FROM passkeys WHERE id = $1 AND conta_id = $2)", credencial_id, conta_id
-        )
-        if not existe:
-            return "inexistente"
-        if total == 1 and not conta["senha_hash"]:
-            return "ultima"
-        await con.execute("DELETE FROM passkeys WHERE id = $1", credencial_id)
-        return "apagada"
+async def apagar(con, conta_id: UUID, credencial_id: bytes) -> bool:
+    status = await con.execute("DELETE FROM passkeys WHERE id = $1 AND conta_id = $2", credencial_id, conta_id)
+    return status != "DELETE 0"
 
 
 def id_publico(credencial_id: bytes) -> str:

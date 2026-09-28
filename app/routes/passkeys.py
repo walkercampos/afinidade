@@ -1,4 +1,5 @@
-"""Rotas das passkeys. Toda cerimônia tem duas etapas:
+"""Rotas das passkeys: a "biometria" do app. A conta nasce pelo e-mail (routes/auth.py); depois
+a pessoa cadastra passkeys e passa a entrar com digital, rosto ou PIN. Toda cerimônia tem duas etapas:
 
 1. `.../opcoes`: o servidor cria um desafio de uso único e devolve as opções para o navegador;
 2. a rota sem `/opcoes`: recebe a resposta assinada pelo aparelho e confere.
@@ -15,7 +16,7 @@ from .. import repository as repo
 from ..config import config
 from ..db import conexao
 from ..ratelimit import exigir_limite, ip_do_cliente
-from ..schemas import Cadastro, OpcoesPasskey, PasskeySalva, RespostaPasskey, Token
+from ..schemas import OpcoesPasskey, PasskeySalva, RespostaPasskey, Token
 from ..security import conta_atual, iniciar_sessao
 
 router = APIRouter(tags=["passkeys"])
@@ -27,48 +28,6 @@ def _limite_ip(request: Request) -> None:
 
 def _recusar(e: pk.PasskeyInvalida, codigo: int = status.HTTP_400_BAD_REQUEST) -> HTTPException:
     return HTTPException(codigo, str(e))
-
-
-# ---------- criar conta só com passkey ----------
-
-
-@router.post("/auth/passkey/registro/opcoes", response_model=OpcoesPasskey)
-async def opcoes_cadastro(dados: Cadastro, request: Request, con=Depends(conexao)):
-    """Valida 18+ e consentimento (a data de nascimento é descartada aqui) e prepara a criação
-    da passkey. A conta só é criada depois que a passkey for verificada."""
-    _limite_ip(request)
-    if dados.handle and await repo.buscar_conta_por_handle(con, dados.handle):
-        raise HTTPException(status.HTTP_409_CONFLICT, "Apelido já em uso")
-    apelido = dados.handle or repo.handle_aleatorio()
-    webauthn_id = pk.novo_webauthn_id()
-    opcoes, desafio = pk.opcoes_registro(config(), webauthn_id=webauthn_id, apelido=apelido, excluir=[])
-    desafio_id = await pk.criar_desafio(
-        con, "registro", desafio, dados={"handle": apelido, "escolhido": bool(dados.handle), "wid": webauthn_id.hex()}
-    )
-    return OpcoesPasskey(desafio_id=desafio_id, opcoes=opcoes)
-
-
-@router.post("/auth/passkey/registro", response_model=Token, status_code=status.HTTP_201_CREATED)
-async def cadastrar(dados: RespostaPasskey, request: Request, response: Response, con=Depends(conexao)):
-    _limite_ip(request)
-    try:
-        desafio, pendente = await pk.consumir_desafio(con, dados.desafio_id, "registro")
-        verificado = pk.verificar_registro(config(), dados.credencial, desafio)
-    except pk.PasskeyInvalida as e:
-        raise _recusar(e) from e
-
-    async with con.transaction():  # conta e passkey nascem juntas, ou nenhuma das duas
-        criada = await repo.criar_conta_anonima(
-            con, pendente["handle"] if pendente["escolhido"] else None, None, bytes.fromhex(pendente["wid"])
-        )
-        if criada is None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Apelido já em uso")
-        conta_id, handle = criada
-        try:
-            await pk.salvar(con, conta_id, verificado, dados.credencial, dados.nome)
-        except asyncpg.UniqueViolationError as e:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Esta passkey já está cadastrada") from e
-    return iniciar_sessao(response, conta_id, 0, handle)
 
 
 # ---------- entrar ----------
@@ -152,10 +111,6 @@ async def remover(passkey_id: str, eu: UUID = Depends(conta_atual), con=Depends(
         credencial_id = base64url_to_bytes(passkey_id)
     except ValueError as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Passkey não encontrada") from e
-    resultado = await pk.apagar(con, eu, credencial_id)
-    if resultado == "inexistente":
+    # Sempre é possível remover: o e-mail continua permitindo entrar e cadastrar outra passkey.
+    if not await pk.apagar(con, eu, credencial_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Passkey não encontrada")
-    if resultado == "ultima":
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "Esta é a única forma de entrar na sua conta. Adicione outra passkey antes."
-        )

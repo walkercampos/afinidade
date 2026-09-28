@@ -12,11 +12,12 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
-from . import mensagens
+from . import mensagens, verificacao
 from . import passkeys as dominio_passkeys
 from .config import config
 from .cripto import Cifrador
 from .db import criar_pool, migrar
+from .email import criar_carteiro
 from .routes import auth, chat, descoberta, fotos, moderacao, passkeys, perfil, saude
 
 log = logging.getLogger("matchmaking")
@@ -37,6 +38,7 @@ async def _limpeza_periodica(app: FastAPI) -> None:
             async with app.state.pool.acquire() as con:
                 await mensagens.apagar_expiradas(con, config().mensagens_retencao_dias)
                 await dominio_passkeys.apagar_desafios_expirados(con)
+                await verificacao.apagar_expiradas(con)
         except Exception:  # a limpeza nunca deve derrubar a API; tenta de novo no próximo ciclo
             log.exception("Falha na limpeza periódica")
         await asyncio.sleep(INTERVALO_LIMPEZA_S)
@@ -47,6 +49,7 @@ async def lifespan(app: FastAPI):
     cfg = config()
     app.state.pool = await criar_pool(cfg.database_url)
     app.state.cifrador = Cifrador(cfg.chave_mensagens)
+    app.state.carteiro = criar_carteiro(cfg.email)
     novas = await migrar(app.state.pool)
     if novas:
         log.info("Migrações aplicadas: %s", ", ".join(novas))

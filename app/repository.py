@@ -63,17 +63,22 @@ async def existe_conta(con, conta_id: UUID) -> bool:
     return await con.fetchval("SELECT EXISTS (SELECT 1 FROM contas WHERE id = $1)", conta_id)
 
 
-async def criar_conta(con, handle: str, senha_hash: str | None, webauthn_id: bytes | None = None) -> UUID | None:
-    """None se o apelido já existe. `senha_hash` é None em contas só com passkey."""
+class EmailJaCadastrado(Exception):
+    pass
+
+
+async def criar_conta(con, handle: str, email_hash: bytes) -> UUID | None:
+    """None se o apelido já existe; EmailJaCadastrado se o e-mail já tem conta."""
     try:
         return await con.fetchval(
-            "INSERT INTO contas (handle, senha_hash, webauthn_id, adulto_confirmado_em, consentimento_em)"
-            " VALUES ($1, $2, $3, now(), now()) RETURNING id",
+            "INSERT INTO contas (handle, email_hash, adulto_confirmado_em, consentimento_em)"
+            " VALUES ($1, $2, now(), now()) RETURNING id",
             handle,
-            senha_hash,
-            webauthn_id,
+            email_hash,
         )
-    except asyncpg.UniqueViolationError:
+    except asyncpg.UniqueViolationError as e:
+        if e.constraint_name == "contas_email_hash_key":
+            raise EmailJaCadastrado from e
         return None
 
 
@@ -84,31 +89,33 @@ def handle_aleatorio() -> str:
     return "anon_" + "".join(secrets.choice(_ALFABETO_HANDLE) for _ in range(8))
 
 
-async def criar_conta_anonima(
-    con, handle: str | None, senha_hash: str | None, webauthn_id: bytes | None = None
-) -> tuple[UUID, str] | None:
+async def criar_conta_anonima(con, handle: str | None, email_hash: bytes) -> tuple[UUID, str] | None:
     """Cria a conta com o apelido escolhido ou, sem ele, com um aleatório.
 
     None só quando o apelido ESCOLHIDO já está em uso (32^8 combinações tornam colisão
     do aleatório raríssima; mesmo assim tentamos algumas vezes).
     """
     if handle:
-        conta_id = await criar_conta(con, handle, senha_hash, webauthn_id)
+        conta_id = await criar_conta(con, handle, email_hash)
         return (conta_id, handle) if conta_id else None
     for _ in range(5):
         handle = handle_aleatorio()
-        if (conta_id := await criar_conta(con, handle, senha_hash, webauthn_id)) is not None:
+        if (conta_id := await criar_conta(con, handle, email_hash)) is not None:
             return conta_id, handle
     raise RuntimeError("Não foi possível gerar um apelido livre")
 
 
 async def buscar_conta_por_handle(con, handle: str):
-    return await con.fetchrow("SELECT id, senha_hash, token_versao, situacao FROM contas WHERE handle = $1", handle)
+    return await con.fetchrow("SELECT id, token_versao, situacao FROM contas WHERE handle = $1", handle)
+
+
+async def buscar_conta_por_email(con, email_hash: bytes):
+    return await con.fetchrow("SELECT id, handle, token_versao, situacao FROM contas WHERE email_hash = $1", email_hash)
 
 
 async def buscar_conta(con, conta_id: UUID):
     return await con.fetchrow(
-        "SELECT id, handle, senha_hash, webauthn_id, token_versao, situacao FROM contas WHERE id = $1", conta_id
+        "SELECT id, handle, webauthn_id, token_versao, situacao FROM contas WHERE id = $1", conta_id
     )
 
 

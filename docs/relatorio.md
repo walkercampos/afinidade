@@ -8,9 +8,10 @@ para manter no ar.
 
 ## Como uma pessoa usa o app
 
-1. **Cria a conta sem senha, com uma passkey:** o celular ou computador confirma com a digital, o
-   rosto ou o PIN, e pronto. Quem preferir pode usar apelido e senha. Se não quiser inventar um
-   apelido, o app gera um (tipo `anon_k3v9x2mq`). Não pedimos e-mail, telefone, nome nem foto. A pessoa confirma que tem
+1. **Cria a conta com o e-mail:** recebe um código de 6 dígitos (ou um link) e confirma. Não existe
+   senha. Logo depois, o app oferece **ativar a biometria**: das próximas vezes, a pessoa entra só com a
+   digital, o rosto ou o PIN do celular. Se não quiser inventar um apelido, o app gera um
+   (tipo `anon_k3v9x2mq`). Não pedimos e-mail, telefone, nome nem foto. A pessoa confirma que tem
    18 anos ou mais e que aceita o uso dos dados sobre sexualidade para encontrar compatibilidades.
 2. **Monta o perfil:** um nome de exibição (pode ser inventado), o próprio gênero, os gêneros que busca e,
    para cada prática da lista, marca **Quero**, **Curioso(a)** ou **Limite** (nunca).
@@ -49,7 +50,8 @@ Essa conta é feita dentro do banco de dados. Por isso o app continua rápido me
 
 | Informação | O que acontece |
 |---|---|
-| E-mail, telefone, nome real | **Não pedimos** |
+| E-mail | Pedido só para criar a conta e recuperar o acesso. Fica guardado **embaralhado** (nem nós conseguimos ler) e nunca aparece para ninguém |
+| Telefone, nome real, senha | **Não pedimos** |
 | Data de nascimento | Usada só para confirmar os 18 anos e **descartada** |
 | Endereço de internet (IP) | **Não é gravado** |
 | Localização | Vira um quadrado de ~5 km. **A posição exata é jogada fora.** Os outros veem só "até N km" |
@@ -81,10 +83,11 @@ menos de um instante:
 
 ## Segurança contra ataques
 
-- **Passkeys:** o jeito mais seguro de entrar que existe hoje. Não há senha para roubar ou vazar,
+- **Biometria (passkeys):** o jeito mais seguro de entrar que existe hoje. Não há senha para roubar,
   e um site falso não consegue usar a passkey, porque ela só funciona no endereço verdadeiro do app.
-  O servidor guarda só uma "chave pública", que não serve para entrar na conta de ninguém.
-- **Senhas** (para quem preferir) guardadas de um jeito que nem nós conseguimos ler. Tentativas de adivinhar senhas são limitadas.
+  A digital e o rosto nunca saem do celular; o servidor guarda só uma "chave pública", que não serve
+  para entrar na conta de ninguém.
+- **Código por e-mail:** vale 15 minutos, uma vez só, e depois de 5 tentativas erradas é descartado.
 - **Sessão protegida:** o "crachá" de login fica num lugar que scripts maliciosos não conseguem ler.
 - **O site não carrega nada de fora** (nem fontes, nem estatísticas, nem anúncios): nenhuma empresa
   terceira fica sabendo quem acessa.

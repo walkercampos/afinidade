@@ -29,9 +29,9 @@ testar: ## Roda todos os testes (o banco de teste é APAGADO)
 testar-js: ## Testes unitários do front-end (precisa só do Node)
 	npm test
 
-e2e: ## Testes no navegador (precisa da API rodando: make rodar em outro terminal)
+e2e: ## Testes no navegador (precisa da API rodando com EMAIL_PROVEDOR=arquivo: make rodar)
 	npm ci && npx playwright install chromium
-	E2E_URL=http://localhost:8000 npm run e2e
+	E2E_URL=http://localhost:8000 E2E_EMAILS=emails-dev npm run e2e
 
 auditar: ## Procura vulnerabilidades conhecidas nas dependências
 	pip-audit -r requirements.txt

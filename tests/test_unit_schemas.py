@@ -3,9 +3,10 @@ from datetime import date, timedelta
 import pytest
 from pydantic import ValidationError
 
-from app.schemas import Localizacao, Registro, TagsInteresses
+from app.schemas import Cadastro as Registro
+from app.schemas import ConfirmarCodigo, Localizacao, TagsInteresses
 
-BASE = {"senha": "senha-forte-123", "confirmo_maior_de_idade": True, "consinto_dados_sensiveis": True}
+BASE = {"email": "pessoa@exemplo.com", "confirmo_maior_de_idade": True, "consinto_dados_sensiveis": True}
 
 
 def _nascido_ha(anos: int, dias_a_mais: int = 0) -> date:
@@ -53,3 +54,19 @@ def test_tags_sem_duplicatas_e_niveis_disjuntos():
 def test_localizacao_fora_dos_limites(dados):
     with pytest.raises(ValidationError):
         Localizacao(**dados)
+
+
+@pytest.mark.parametrize("email", ["sem-arroba", "a@b", "a b@c.com", "@c.com", "x" * 250 + "@c.com"])
+def test_emails_invalidos(email):
+    with pytest.raises(ValidationError):
+        Registro(**{**BASE, "email": email}, data_nascimento=_nascido_ha(30))
+
+
+def test_email_normalizado():
+    assert Registro(**{**BASE, "email": "  Ana@Mail.COM "}, data_nascimento=_nascido_ha(30)).email == "ana@mail.com"
+
+
+@pytest.mark.parametrize("codigo", ["12345", "1234567", "abcdef", ""])
+def test_codigo_tem_seis_digitos(codigo):
+    with pytest.raises(ValidationError):
+        ConfirmarCodigo(verificacao_id="00000000-0000-0000-0000-000000000000", codigo=codigo)

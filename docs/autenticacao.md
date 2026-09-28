@@ -1,112 +1,123 @@
-# Autenticação sem senha: passkeys
+# Acesso: e-mail para criar a conta, biometria para entrar
 
-O Afinidade usa **passkeys (WebAuthn/FIDO2)** implementadas no próprio servidor. A senha continua
-disponível como alternativa. Não há Magic Link por e-mail, Clerk nem Supabase, pelos motivos abaixo.
-
-## Por que passkeys, e não Magic Link, Clerk ou Supabase
-
-| | Passkeys no próprio servidor | Magic Link por e-mail | Clerk | Supabase Auth |
-|---|---|---|---|---|
-| Precisa de e-mail | **não** | sim | sim (ou telefone) | sim (ou telefone) |
-| Resistente a phishing | **sim** (a assinatura só vale para o domínio certo) | não (o link pode ser encaminhado ou interceptado) | depende do método | depende do método |
-| Terceiros veem seus usuários e IPs | **não** | provedor de e-mail | sim | sim |
-| Carrega JavaScript de fora (quebra a CSP) | **não** | não | sim | não |
-| Custo | **zero, sem limite** | envio de e-mails (cotas) | grátis até um limite | grátis até um limite |
-| O que vaza se o banco vazar | **só chaves públicas: inútil para invadir** | nada útil | fora do seu controle | fora do seu controle |
-
-Para um app cujo princípio é "não sabemos quem você é", pedir e-mail quebraria a promessa. As passkeys
-são ao mesmo tempo o método **mais seguro** e o **mais anônimo**.
-
-## Como funciona
+Não existe senha. A conta nasce com o **e-mail** (código de 6 dígitos ou link de uso único), e
+depois a pessoa ativa a **biometria** (passkey: digital, rosto ou PIN) para os próximos acessos. O e-mail
+continua servindo para entrar em um aparelho novo ou recuperar a conta.
 
 ```
-Cadastro                                             Login
-────────                                             ─────
-navegador → POST /api/auth/passkey/registro/opcoes   navegador → POST /api/auth/passkey/login/opcoes
-            (18+, consentimento, apelido opcional)   ← desafio aleatório (uso único, 5 min)
-← desafio aleatório (uso único, 5 min)               aparelho: digital/rosto/PIN → assina o desafio
-aparelho: digital/rosto/PIN → cria o par de chaves   navegador → POST /api/auth/passkey/login
-navegador → POST /api/auth/passkey/registro          servidor confere a assinatura com a chave pública,
-servidor confere e cria conta + passkey juntas       o domínio, o desafio e o contador → sessão
+Criar conta                                   Dia a dia                     Aparelho novo / perdeu o celular
+───────────                                   ─────────                     ────────────────────────────────
+e-mail + 18+ + consentimento                  "Entrar com biometria"        "Receber código por e-mail"
+   → código de 6 dígitos (ou link) por e-mail    → digital / rosto / PIN       → código → entra
+   → confirma → conta criada                     → entra                       → ativa a biometria de novo
+   → "Ativar biometria" (passkey)
 ```
 
-- A **chave privada nunca sai do aparelho**. O servidor guarda só a pública (`passkeys.chave_publica`).
-- **Passkey descobrível:** o login não pede apelido; o aparelho mostra as passkeys que tem para o site.
-- **Verificação do usuário obrigatória:** o aparelho sozinho não basta, precisa da digital, do rosto ou do PIN.
-- **Desafios de uso único no banco** (`desafios_webauthn`): consumidos com `DELETE ... RETURNING`,
-  funcionam com várias instâncias e impedem replay. Os expirados são limpos a cada 30 s.
-- **Contador de assinaturas:** se não avançar, o login é recusado (sinal de autenticador clonado).
-- `user.id` do WebAuthn é um valor aleatório (`contas.webauthn_id`), não o id da conta.
-- Não é possível remover a última passkey de uma conta sem senha (a pessoa ficaria trancada para fora).
+## Privacidade do e-mail
 
-Arquivos: `app/passkeys.py` (regras + banco), `app/routes/passkeys.py` (API),
-`db/migrations/0007_passkeys.sql`, `static/js/api.js` e `static/js/util.js` (navegador),
-`static/js/telas/entrar.js` e `telas/conta.js` (telas).
+| O quê | Como |
+|---|---|
+| E-mail no banco | **nunca em texto**: só `HMAC-SHA256(EMAIL_PEPPER, e-mail)`. Com o banco vazado, e sem a chave, não dá para descobrir os e-mails, nem por dicionário. |
+| Enviar o código | usa o endereço que a pessoa acabou de digitar; nada é lido do banco |
+| Código e link | também só em hash; uso único; valem 15 min; um pedido novo invalida o anterior |
+| Descobrir quem tem conta | impossível pela API: "entrar" e "criar conta" respondem igual, e o envio acontece depois da resposta (o tempo de resposta também não denuncia) |
+| Texto do e-mail | neutro ("Seu código de acesso"), sem o nome do app, porque aparece na tela de bloqueio |
+| Outras pessoas | nunca veem o e-mail; o perfil mostra só o apelido |
+| Força bruta no código | até 5 tentativas por código; até 5 e-mails por hora por endereço; limite por IP |
+| Link | o token vai no fragmento (`#/verificar/...`), que o navegador não envia a servidores nem em `Referer`, e sai do histórico assim que é usado |
 
-## 1. Configuração (não existe painel)
+O que o app **não** consegue esconder: o provedor de e-mail (ex.: Resend) vê o destinatário e o
+código. Por isso a tela de cadastro sugere usar um e-mail só para isso ou um alias (Ocultar meu
+e-mail do iCloud, Firefox Relay).
 
-Como tudo roda no seu servidor, não há painel nem chave de API. São só duas variáveis:
+## Biometria (passkeys)
 
-| Variável | O que é | Exemplo em produção |
-|---|---|---|
-| `WEBAUTHN_RP_ID` | o domínio do app, **sem** `https://` e sem porta | `afinidade.onrender.com` |
-| `WEBAUTHN_ORIGENS` | a origem exata da barra do navegador (várias: separe por vírgula) | `https://afinidade.onrender.com` |
+- A **chave privada nunca sai do aparelho**, e a digital ou o rosto nunca chegam ao app. O servidor
+  guarda só a chave pública, que não serve para entrar em conta nenhuma.
+- **Resistente a phishing:** a assinatura só vale para o domínio verdadeiro do app.
+- Exigimos **passkey descobrível** (entra sem digitar nada) e **verificação do usuário** (biometria ou PIN).
+- **Desafios de uso único no banco**, contador contra autenticador clonado e `user.id` aleatório (não o id da conta).
+- A pessoa pode ter várias (celular, computador) e remover qualquer uma; o e-mail sempre permite voltar.
 
-No **Render**, depois do primeiro deploy (quando você já sabe a URL):
-*Dashboard → seu serviço → Environment → Add Environment Variable*, cadastre as duas acima e salve.
-O Render reinicia o serviço sozinho. **Em produção, o app se recusa a subir sem elas**, de propósito:
-é melhor falhar na hora do que ter passkeys quebradas ou aceitando qualquer origem.
+Arquivos: `app/verificacao.py`, `app/email.py` e `app/routes/auth.py` (e-mail); `app/passkeys.py` e
+`app/routes/passkeys.py` (biometria); migrações `0007_passkeys.sql` e `0008_email.sql`; no front,
+`telas/entrar.js`, `telas/biometria.js`, `telas/verificar.js` e `telas/conta.js`.
 
-Cuidados:
+## 1. Configuração
 
-- Passkeys **só funcionam em HTTPS** (ou em `http://localhost` durante o desenvolvimento).
-- As passkeys ficam presas ao `WEBAUTHN_RP_ID`. **Se você trocar de domínio** (ex.: de `onrender.com`
-  para um domínio próprio), as passkeys antigas deixam de funcionar. Escolha o domínio definitivo cedo,
-  ou peça às pessoas para adicionarem uma passkey nova antes da troca.
-- Para usar em `app.dominio.com` **e** `dominio.com`, use `WEBAUTHN_RP_ID=dominio.com` e liste as duas origens.
+### E-mail (custo zero com o Resend)
 
-Localmente, o `.env.example` já vem com `localhost` e `http://localhost:8000`.
+1. Crie uma conta em [resend.com](https://resend.com). O plano gratuito cobre um MVP; confira os limites atuais.
+2. **Domains → Add Domain**: adicione seu domínio e crie os registros DNS indicados (SPF/DKIM).
+   Sem domínio próprio, o Resend só envia para o seu próprio e-mail, o que serve para testes.
+3. **API Keys → Create API Key** com permissão **Sending access** (só envio, o mínimo necessário).
+4. No Render (*seu serviço → Environment*):
+   - `EMAIL_PROVEDOR=resend` (o `render.yaml` já define)
+   - `RESEND_API_KEY=re_...`
+   - `EMAIL_REMETENTE=Afinidade <nao-responda@seudominio.com>`
+   - `EMAIL_PEPPER`: o `render.yaml` gera sozinho. **Nunca troque depois de ter usuários**:
+     ninguém mais seria encontrado pelo e-mail (a biometria continuaria funcionando).
+
+Alternativa: `EMAIL_PROVEDOR=smtp` com `SMTP_HOST`, `SMTP_PORTA` (587), `SMTP_USUARIO` e `SMTP_SENHA`,
+por exemplo com Brevo, Mailgun ou o SMTP do seu provedor. A conexão exige TLS.
+
+### Biometria
+
+| Variável | Exemplo em produção |
+|---|---|
+| `WEBAUTHN_RP_ID` | `afinidade.onrender.com` (só o domínio) |
+| `WEBAUTHN_ORIGENS` | `https://afinidade.onrender.com` (a origem exata) |
+
+Passkeys só funcionam em HTTPS (ou em `localhost`). Elas ficam presas ao domínio: escolha o
+**definitivo** cedo, porque trocar depois invalida as passkeys existentes. Nesse caso as pessoas
+entram por e-mail e ativam de novo.
+
+**Em produção, o app se recusa a subir** sem essas variáveis, sem `EMAIL_PEPPER` ou com um provedor
+de e-mail de desenvolvimento. É melhor falhar na hora do que funcionar pela metade.
+
+### Desenvolvimento
+
+Com o `.env.example`, os e-mails viram arquivos `.txt` na pasta `emails-dev/`: abra o mais recente
+para ver o código ou clicar no link. As passkeys funcionam em `http://localhost:8000`.
 
 ## 2. Instalação
 
 ```bash
 cd matchmaking
-pip install -r requirements.txt        # inclui webauthn==3.0.1 (py_webauthn, Duo Security)
-# desenvolvimento e testes:
-pip install -r requirements-dev.txt
-npm ci && npx playwright install chromium   # só para os testes no navegador
+pip install -r requirements.txt            # inclui webauthn (py_webauthn); o e-mail usa só a biblioteca padrão
+pip install -r requirements-dev.txt        # testes, lint, auditoria
+npm ci && npx playwright install chromium  # só para os testes no navegador
 ```
 
-O banco é atualizado sozinho na próxima inicialização (migração `0007_passkeys`).
-Para aplicar manualmente: `python -m app.admin migrar`.
+As migrações rodam sozinhas na próxima inicialização (`python -m app.admin migrar` para rodar à mão).
 
-## 3. Código e testes
+## 3. Testes
 
-| Camada | Testes |
+| Arquivo | O que cobre |
 |---|---|
-| Criptografia e regras (`tests/test_passkeys.py`, 23 testes) | Um **autenticador de software** (`tests/autenticador.py`) gera chaves ES256 de verdade e assina como um celular. Cobre cadastro, login, replay, desafio expirado, phishing (outra origem ou outro domínio), chave errada, contador clonado, falta de verificação biométrica, respostas malformadas, adicionar e remover passkeys, conta banida e exclusão de conta. |
-| Navegador (`tests/e2e/fluxo.test.js`) | O **autenticador virtual do Chrome** simula um celular com biometria: cria a conta só com passkey, sai e entra de novo. |
-| Funções puras do front (`tests/js/util.test.js`) | Conversões base64url ↔ bytes e mensagens de erro. |
+| `tests/test_email.py` | e-mail nunca em texto no banco, respostas iguais com ou sem conta, cadastro com e-mail existente, normalização, limite de tentativas, uso único, expiração, pedido novo invalidando o anterior, link mágico, texto discreto, limite de envios, disputa de apelido |
+| `tests/test_unit_email.py` | cada carteiro (arquivo, Resend, SMTP com TLS obrigatório), falhas de envio e as travas de configuração |
+| `tests/test_passkeys.py` | biometria com criptografia real (autenticador de software): phishing, replay, clone, chave errada, falta de verificação, desafio de outra conta, banimento, exclusão |
+| `tests/e2e/fluxo.test.js` | no navegador: cadastro pelo e-mail lendo o código da "caixa de entrada", ativação da biometria com o autenticador virtual do Chrome, sair e entrar só com a digital, e o link do e-mail |
 
 ## 4. Boas práticas com o `.env` e os segredos
 
-1. **O `.env` nunca vai para o Git.** Já está no `.gitignore` e no `.dockerignore`. Só o
-   `.env.example`, com valores falsos, é versionado.
-2. **Em produção, os segredos ficam no painel do provedor** (Render → Environment) e, na pipeline,
-   em *GitHub → Settings → Environments → producao → Secrets*. Nunca em arquivos, commits,
-   issues ou logs.
-3. **Gere segredos fortes:** `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
-   O `render.yaml` já gera `JWT_SECRET` e `CHAVE_MENSAGENS` automaticamente.
-4. **Um conjunto de segredos por ambiente** (dev, testes, produção). Nunca reaproveite o de produção.
-5. **Saiba o que acontece ao trocar cada um:**
-   - `JWT_SECRET`: todo mundo é deslogado (seguro; faça isso se suspeitar de vazamento);
-   - `CHAVE_MENSAGENS`: mensagens e fotos existentes ficam ilegíveis. **Guarde um backup seguro**
-     (ex.: no gerenciador de senhas da equipe) e não troque sem um plano de migração;
-   - `WEBAUTHN_RP_ID`: as passkeys existentes param de funcionar (veja acima).
-6. **Nada de segredo no front-end.** Tudo em `static/` é público. Este app não tem chave de API
-   no navegador; se um dia tiver, só chaves feitas para serem públicas.
-7. **Proteções automáticas já ligadas:** o hook `detect-private-key` do pre-commit barra chaves
-   privadas no commit. Ative também *Secret scanning* e *Push protection* em *GitHub → Settings →
-   Code security*, que são grátis para repositórios públicos.
-8. **Menor privilégio no banco:** em produção, use um usuário do Postgres dono só do banco do app,
-   nunca o superusuário do provedor.
+1. **O `.env` nunca vai para o Git** (está no `.gitignore` e no `.dockerignore`); só o `.env.example`,
+   com valores falsos. A pasta `emails-dev/` também é ignorada.
+2. **Produção:** segredos só no painel do Render; na pipeline, em *GitHub → Settings → Environments*.
+3. **Segredos fortes:** `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
+4. **Um conjunto por ambiente** (dev, testes, produção). Nunca reaproveite o de produção.
+5. **Chave do Resend com o mínimo de permissão** ("Sending access"), e troque-a se vazar (pode ser trocada sem efeito colateral).
+6. **Saiba o que cada troca causa:**
+
+| Segredo | Se trocar |
+|---|---|
+| `JWT_SECRET` | todo mundo é deslogado (seguro; faça isso se suspeitar de vazamento) |
+| `RESEND_API_KEY` / `SMTP_SENHA` | nada; só atualize no painel |
+| `EMAIL_PEPPER` | ninguém é mais encontrado pelo e-mail. **Faça backup e não troque.** |
+| `CHAVE_MENSAGENS` | mensagens e fotos existentes ficam ilegíveis. **Faça backup e não troque.** |
+| `WEBAUTHN_RP_ID` | as passkeys param de funcionar; as pessoas reativam após entrar por e-mail |
+
+7. **Nada secreto no front-end:** tudo em `static/` é público.
+8. **Proteções automáticas:** o pre-commit barra chaves privadas; ative também *Secret scanning* e
+   *Push protection* no GitHub (grátis em repositórios públicos).

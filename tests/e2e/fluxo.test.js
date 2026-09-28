@@ -1,17 +1,20 @@
 // Testes no navegador (Chromium): os fluxos principais como uma pessoa usaria.
 //
-//   E2E_URL=http://localhost:8000 npm run e2e
+//   E2E_URL=http://localhost:8000 E2E_EMAILS=./emails-dev npm run e2e
 //
-// O servidor precisa estar rodando com AMBIENTE=dev e um LIMITE_AUTH_POR_MIN alto.
+// O servidor precisa estar rodando com AMBIENTE=dev, EMAIL_PROVEDOR=arquivo (E2E_EMAILS aponta
+// para a mesma pasta de EMAIL_PASTA) e um LIMITE_AUTH_POR_MIN alto.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { chromium } from "playwright";
 
 const BASE = process.env.E2E_URL ?? "http://localhost:8000";
 const FOTO = fileURLToPath(new URL("./foto.jpg", import.meta.url));
-const SENHA = "senha-forte-123";
+const PASTA_EMAILS = process.env.E2E_EMAILS ?? "emails-dev";
 const sufixo = Date.now().toString(36);
 let navegador;
 
@@ -20,22 +23,46 @@ before(async () => {
 });
 after(() => navegador?.close());
 
+/** Lê a "caixa de entrada" (pasta de e-mails de desenvolvimento) e devolve o código e o link. */
+async function emailPara(email) {
+  for (let i = 0; i < 50; i++) {
+    const arquivos = readdirSync(PASTA_EMAILS).sort().reverse();
+    for (const a of arquivos) {
+      const texto = readFileSync(join(PASTA_EMAILS, a), "utf8");
+      if (texto.startsWith(`Para: ${email}\n`)) {
+        return { codigo: texto.match(/código de acesso é: (\d{6})/)[1], link: texto.match(/(http\S+#\/verificar\/\S+)/)[1] };
+      }
+    }
+    await new Promise((ok) => setTimeout(ok, 100));
+  }
+  throw new Error(`nenhum e-mail para ${email}`);
+}
+
+/** Cadastro pela interface: e-mail + código. Termina logado, na tela de biometria ou de perfil. */
+async function cadastrarPorEmail(pagina, email, apelido) {
+  await pagina.click("button[role=tab]:has-text('Criar conta')");
+  await pagina.fill("#email", email);
+  if (apelido) await pagina.fill("#handle", apelido);
+  await pagina.fill("#nascimento", "1991-02-03");
+  await pagina.check("input[name=maior]");
+  await pagina.check("input[name=consinto]");
+  await pagina.click("button:has-text('Enviar código de confirmação')");
+  await pagina.waitForSelector("#codigo");
+  await pagina.fill("#codigo", (await emailPara(email)).codigo);
+  await pagina.click("button:has-text('Confirmar')");
+}
+
 async function novaPessoa(apelido, genero, busca) {
   const ctx = await navegador.newContext({ viewport: { width: 360, height: 780 }, reducedMotion: "reduce" });
   const pagina = await ctx.newPage();
   const erros = [];
   pagina.on("pageerror", (e) => erros.push(String(e)));
   await pagina.goto(`${BASE}/#/entrar`);
-  await pagina.click("button[role=tab]:has-text('Criar conta')");
-  // Passkey é o padrão; estes testes usam o caminho alternativo, com senha.
-  await pagina.click("button:has-text('Prefiro criar com senha')");
-  await pagina.fill("#handle", apelido);
-  await pagina.fill("#senha", SENHA);
-  await pagina.fill("#nascimento", "1991-02-03");
-  await pagina.check("input[name=maior]");
-  await pagina.check("input[name=consinto]");
-  await pagina.click("button[type=submit]");
-  await pagina.waitForSelector("text=Crie seu perfil");
+  await cadastrarPorEmail(pagina, `${apelido}@teste.invalid`, apelido);
+  // Sem autenticador neste contexto: a biometria fica para depois.
+  await esperarTitulo(pagina, "Conta criada. Agora, a biometria");
+  await pagina.click("button:has-text('Agora não')");
+  await esperarTitulo(pagina, "Crie seu perfil");
   await pagina.fill("#nome", apelido);
   await pagina.selectOption("#genero", genero);
   await pagina.check(`input[name=busca_por][value=${busca}]`);
@@ -158,7 +185,7 @@ async function autenticadorVirtual(ctx, pagina) {
   return { credenciais: async () => (await cdp.send("WebAuthn.getCredentials", { authenticatorId })).credentials };
 }
 
-test("criar conta e entrar só com passkey, sem senha", async () => {
+test("conta pelo e-mail, depois biometria; sair e entrar só com a digital", async () => {
   const ctx = await navegador.newContext({ viewport: { width: 360, height: 780 } });
   const pagina = await ctx.newPage();
   const erros = [];
@@ -166,28 +193,41 @@ test("criar conta e entrar só com passkey, sem senha", async () => {
   await pagina.goto(`${BASE}/#/entrar`);
   const aparelho = await autenticadorVirtual(ctx, pagina);
 
-  await pagina.click("button[role=tab]:has-text('Criar conta')");
-  await pagina.fill("#handle", `pk_${sufixo}`);
-  await pagina.fill("#nascimento", "1992-02-02");
-  await pagina.check("input[name=maior]");
-  await pagina.check("input[name=consinto]");
-  assert.equal(await pagina.isVisible("#senha"), false); // passkey é o padrão: sem campo de senha
-  await pagina.click("button[type=submit]:has-text('Criar conta com passkey')");
+  await cadastrarPorEmail(pagina, `bio_${sufixo}@teste.invalid`, `bio_${sufixo}`);
+  await esperarTitulo(pagina, "Conta criada. Agora, a biometria");
+  await pagina.click("button:has-text('Ativar biometria')");
   await esperarTitulo(pagina, "Crie seu perfil");
-
   const [credencial] = await aparelho.credenciais();
-  assert.equal(credencial.isResidentCredential, true); // passkey descobrível: entra sem digitar o apelido
+  assert.equal(credencial.isResidentCredential, true); // passkey descobrível: entra sem digitar nada
 
   await pagina.goto(`${BASE}/#/conta`);
   await pagina.waitForSelector(".lista-passkeys li");
-  assert.equal(await pagina.locator(".lista-passkeys li").count(), 1);
   await pagina.click("button:has-text('Sair de todos os dispositivos')");
   await esperarTitulo(pagina, "Conexões por afinidade, sem expor quem você é");
   assert.equal((await ctx.request.get(`${BASE}/api/passkeys`)).status(), 401);
 
-  await pagina.click("button:has-text('Entrar com passkey')");
+  await pagina.click("button:has-text('Entrar com biometria')");
   await esperarTitulo(pagina, "Crie seu perfil"); // entrou: ainda não tem perfil
-  assert.equal((await ctx.request.get(`${BASE}/api/passkeys`)).status(), 200);
   assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test("link do e-mail entra no app e some do histórico", async () => {
+  const ctx = await navegador.newContext({ viewport: { width: 360, height: 780 } });
+  const pagina = await ctx.newPage();
+  await pagina.goto(`${BASE}/#/entrar`);
+  const email = `link_${sufixo}@teste.invalid`;
+  await pagina.click("button[role=tab]:has-text('Criar conta')");
+  await pagina.fill("#email", email);
+  await pagina.fill("#nascimento", "1991-02-03");
+  await pagina.check("input[name=maior]");
+  await pagina.check("input[name=consinto]");
+  await pagina.click("button:has-text('Enviar código de confirmação')");
+  await pagina.waitForSelector("#codigo");
+  const { link } = await emailPara(email);
+  const destino = new URL(link);
+  await pagina.goto(`${BASE}/${destino.hash}`);
+  await esperarTitulo(pagina, "Conta criada. Agora, a biometria"); // conta nova: oferece a biometria
+  assert.ok(!pagina.url().includes("verificar"), "o token ficou na URL");
   await ctx.close();
 });

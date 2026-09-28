@@ -1,6 +1,3 @@
-import hashlib
-import hmac
-import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -12,9 +9,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from .config import config
 from .ratelimit import exigir_limite
 
-# scrypt da stdlib: sem dependência nativa extra e resistente a força bruta em GPU.
-_SCRYPT = {"n": 2**14, "r": 8, "p": 1, "dklen": 32}
-
 COOKIE_SESSAO = "sessao"
 # Header que o front envia em toda requisição que altera dados. Um site de terceiros não
 # consegue enviá-lo sem um preflight CORS, que esta API nunca aprova (defesa extra contra
@@ -23,38 +17,19 @@ HEADER_CSRF = "X-CSRF"
 _METODOS_SEGUROS = {"GET", "HEAD", "OPTIONS"}
 
 
-def gerar_hash_senha(senha: str) -> str:
-    sal = secrets.token_bytes(16)
-    chave = hashlib.scrypt(senha.encode(), salt=sal, **_SCRYPT)
-    return f"scrypt${sal.hex()}${chave.hex()}"
-
-
-# Usado quando o handle não existe, para que o tempo de resposta do login não revele
-# quais handles estão cadastrados.
-HASH_FALSO = gerar_hash_senha(secrets.token_urlsafe(16))
-
-
-def verificar_senha(senha: str, armazenado: str) -> bool:
-    try:
-        _, sal_hex, chave_hex = armazenado.split("$")
-    except ValueError:
-        return False
-    chave = hashlib.scrypt(senha.encode(), salt=bytes.fromhex(sal_hex), **_SCRYPT)
-    return hmac.compare_digest(chave.hex(), chave_hex)
-
-
 def emitir_token(conta_id: UUID, versao: int, segredo: str, expira_min: int) -> str:
     agora = datetime.now(UTC)
     payload = {"sub": str(conta_id), "ver": versao, "iat": agora, "exp": agora + timedelta(minutes=expira_min)}
     return jwt.encode(payload, segredo, algorithm="HS256")
 
 
-def iniciar_sessao(response: Response, conta_id: UUID, versao: int, handle: str) -> dict:
-    """Emite o token, grava o cookie HttpOnly e devolve o corpo da resposta de login."""
+def iniciar_sessao(response: Response, conta_id: UUID, versao: int, handle: str, *, novo: bool = False) -> dict:
+    """Emite o token, grava o cookie HttpOnly e devolve o corpo da resposta de login.
+    `novo` avisa o front que a conta acabou de ser criada (hora de oferecer a biometria)."""
     cfg = config()
     token = emitir_token(conta_id, versao, cfg.jwt_secret, cfg.jwt_expira_min)
     gravar_cookie_sessao(response, token, cfg)
-    return {"access_token": token, "token_type": "bearer", "handle": handle}
+    return {"access_token": token, "token_type": "bearer", "handle": handle, "novo": novo}
 
 
 def gravar_cookie_sessao(response: Response, token: str, config) -> None:

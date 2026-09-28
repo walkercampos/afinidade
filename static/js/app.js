@@ -3,16 +3,20 @@ import { ErroApi } from "./api.js";
 import { avisar } from "./dom.js";
 import { instalarPanico } from "./panico.js";
 import { iniciarRoteador, registrarRota } from "./roteador.js";
+import { telaBiometria } from "./telas/biometria.js";
 import { telaChat } from "./telas/chat.js";
 import { telaConexoes } from "./telas/conexoes.js";
 import { telaConta } from "./telas/conta.js";
 import { telaDescobrir } from "./telas/descobrir.js";
 import { telaEntrar } from "./telas/entrar.js";
 import { telaPerfil } from "./telas/perfil.js";
+import { telaVerificar } from "./telas/verificar.js";
 
 instalarPanico();
 
 registrarRota("entrar", telaEntrar, { comMenu: false });
+registrarRota("verificar", telaVerificar, { comMenu: false });
+registrarRota("biometria", telaBiometria, { comMenu: false });
 registrarRota("descobrir", telaDescobrir);
 registrarRota("conexoes", telaConexoes);
 registrarRota("chat", telaChat);

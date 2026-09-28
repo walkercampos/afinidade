@@ -12,7 +12,7 @@ import asyncpg
 import pytest
 
 URL = os.environ.get("TEST_DATABASE_URL")
-SENHA = "senha-forte-123"
+CADASTRO = {"data_nascimento": "1990-05-01", "confirmo_maior_de_idade": True, "consinto_dados_sensiveis": True}
 _contador = itertools.count()
 
 
@@ -38,6 +38,8 @@ def client():
             # O TestClient fala com http://testserver: é essa a origem das passkeys nos testes.
             "WEBAUTHN_RP_ID": "testserver",
             "WEBAUTHN_ORIGENS": "http://testserver",
+            "EMAIL_PEPPER": "p" * 32,
+            "EMAIL_PROVEDOR": "memoria",  # os e-mails ficam em app.state.carteiro.caixa
             "LIMITE_API_POR_MIN": "100000",
         }
     )
@@ -67,9 +69,49 @@ def db():
     loop.close()
 
 
+def novo_email() -> str:
+    return f"u{next(_contador)}_{os.getpid()}@teste.invalid"
+
+
+def ultimo_email(client, para: str) -> tuple[str, str]:
+    """(código, token do link) do último e-mail enviado para `para`."""
+    import re
+
+    para = para.strip().lower()  # o app envia para o endereço normalizado
+    mensagem = next(m for m in reversed(client.app.state.carteiro.caixa) if m.para == para)
+    codigo = re.search(r"código de acesso é: (\d{6})", mensagem.texto).group(1)
+    token = re.search(r"/#/verificar/(\S+)", mensagem.texto).group(1)
+    return codigo, token
+
+
+def confirmar(client, verificacao_id: str, email: str):
+    codigo, _ = ultimo_email(client, email)
+    r = client.post("/api/auth/email/confirmar", json={"verificacao_id": verificacao_id, "codigo": codigo})
+    client.cookies.clear()  # os testes usam Bearer; o cookie é testado à parte
+    return r
+
+
+def criar_conta(client, email: str | None = None, handle: str | None = None, **extra):
+    """Cadastro completo por e-mail (pedido + código). Devolve a resposta da confirmação."""
+    email = email or novo_email()
+    r = client.post("/api/auth/email/cadastro", json={"email": email, "handle": handle, **CADASTRO, **extra})
+    assert r.status_code == 202, r.text
+    return confirmar(client, r.json()["verificacao_id"], email)
+
+
+def entrar_por_email(client, email: str):
+    r = client.post("/api/auth/email/entrar", json={"email": email})
+    assert r.status_code == 202, r.text
+    return confirmar(client, r.json()["verificacao_id"], email)
+
+
+def bearer(resposta) -> dict:
+    return {"Authorization": f"Bearer {resposta.json()['access_token']}"}
+
+
 class Pessoa:
-    def __init__(self, client, handle, headers, id_):
-        self.client, self.handle, self.h, self.id = client, handle, headers, id_
+    def __init__(self, client, handle, headers, id_, email):
+        self.client, self.handle, self.h, self.id, self.email = client, handle, headers, id_, email
 
     def get(self, url, **kw):
         return self.client.get(url, headers=self.h, **kw)
@@ -92,19 +134,10 @@ def pessoa(client):
         genero="outro", busca_por=("outro",), quero=(), curioso=(), limite=(), local=None, dist=None, handle=None
     ):
         handle = handle or f"p{next(_contador)}_{os.getpid()}"
-        r = client.post(
-            "/api/auth/registro",
-            json={
-                "handle": handle,
-                "senha": SENHA,
-                "data_nascimento": "1990-05-01",
-                "confirmo_maior_de_idade": True,
-                "consinto_dados_sensiveis": True,
-            },
-        )
-        assert r.status_code == 201, r.text
-        client.cookies.clear()  # os testes usam Bearer; o cookie é testado à parte
-        h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+        email = novo_email()
+        r = criar_conta(client, email, handle)
+        assert r.status_code == 200, r.text
+        h = bearer(r)
         r = client.put(
             "/api/perfil",
             headers=h,
@@ -116,7 +149,7 @@ def pessoa(client):
             },
         )
         assert r.status_code == 200, r.text
-        p = Pessoa(client, handle, h, r.json()["id"])
+        p = Pessoa(client, handle, h, r.json()["id"], email)
         if local:
             r = p.put("/api/perfil/localizacao", json={"lat": local[0], "lon": local[1], "distancia_max_km": dist})
             assert r.status_code == 200, r.text

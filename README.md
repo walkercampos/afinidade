@@ -5,7 +5,7 @@ Rede social adulta (18+) de conexões por afinidade, com foco em diversidade de 
 
 - **Para entender o projeto sem jargão:** [docs/relatorio.md](docs/relatorio.md)
 - **Para desenvolver:** [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/arquitetura.md](docs/arquitetura.md)
-- **Segurança:** [SECURITY.md](SECURITY.md) · **Login sem senha:** [docs/autenticacao.md](docs/autenticacao.md) · **Próximos passos:** [docs/roadmap.md](docs/roadmap.md)
+- **Segurança:** [SECURITY.md](SECURITY.md) · **E-mail + biometria:** [docs/autenticacao.md](docs/autenticacao.md) · **Próximos passos:** [docs/roadmap.md](docs/roadmap.md)
 - **Linguagem visual "Véu Luminoso":** [docs/design/](docs/design/filosofia-veu-luminoso.md)
 
 <p>
@@ -18,7 +18,7 @@ Rede social adulta (18+) de conexões por afinidade, com foco em diversidade de 
 
 | Funcionalidade | Resumo |
 |---|---|
-| Cadastro anônimo | Sem e-mail, telefone ou nome: **passkey** (digital, rosto ou PIN, sem senha) ou apelido + senha. 18+ e consentimento obrigatórios. |
+| Conta sem senha | Criada com **e-mail** (código ou link), que fica guardado só como hash; depois, **biometria** (digital, rosto ou PIN). Sem telefone nem nome. 18+ e consentimento obrigatórios. |
 | Matchmaking | Gênero mútuo → limites absolutos → afinidade ponderada (quero 3 · quero/curioso 2 · curioso 1), calculado no Postgres. |
 | Gostos parecidos | Similaridade de preferências (0–100%) para ver quem curte as mesmas coisas. |
 | Localização aproximada | Só um quadrado de ~5 km; distância exibida em faixas ("até 10 km"). |
@@ -47,9 +47,10 @@ Com Docker para tudo: `docker compose up --build`.
 | Código, CI/CD e testes diários | GitHub + GitHub Actions |
 | API + front-end (um contêiner) | Render, plano *free* (`render.yaml`) |
 | Banco PostgreSQL | Neon, plano *free* |
+| E-mails de acesso | Resend, plano *free* (ou qualquer SMTP) |
 
 **Deploy:** crie o banco no Neon → no Render, *New → Blueprint* apontando para o repositório (ele gera
-`JWT_SECRET` e `CHAVE_MENSAGENS` sozinho; cole o `DATABASE_URL` do Neon e, com a URL do app em mãos, `WEBAUTHN_RP_ID` e `WEBAUTHN_ORIGENS`, veja [autenticacao.md](docs/autenticacao.md)) → no GitHub, em
+`JWT_SECRET` e `CHAVE_MENSAGENS` sozinho; cole o `DATABASE_URL` do Neon, a `RESEND_API_KEY` e o `EMAIL_REMETENTE` do Resend (grátis) e, com a URL do app em mãos, `WEBAUTHN_RP_ID` e `WEBAUTHN_ORIGENS`; veja [autenticacao.md](docs/autenticacao.md)) → no GitHub, em
 *Settings → Environments → producao*, cadastre o secret `RENDER_DEPLOY_HOOK_URL` e a variável `APP_URL`.
 A partir daí, todo merge na `main` que passa na pipeline vai para o ar sozinho.
 
@@ -65,8 +66,8 @@ Roda em todo push/PR e **todo dia às 06:17** para pegar vulnerabilidades novas.
 
 ## Anonimato: limites honestos
 
-O app não guarda e-mail, telefone, IP, coordenadas, data de nascimento nem metadados de fotos, e apaga
-tudo de verdade quando a conta é excluída. Mesmo assim, **não prometa "100% de anonimato"**: o provedor
+O app não guarda telefone, IP, coordenadas, data de nascimento nem metadados de fotos; o e-mail fica
+só como hash (ninguém consegue lê-lo, nem nós); e tudo é apagado de verdade quando a conta é excluída. Mesmo assim, **não prometa "100% de anonimato"**: o provedor
 de hospedagem vê IPs de conexão, e um apelido ou bio reaproveitado de outra rede pode identificar alguém.
 Antes de abrir ao público, revise com advogado(a): LGPD (dados sobre vida sexual são sensíveis),
 Marco Civil (art. 15, guarda de registros de acesso) e ECA Digital (verificação de idade).

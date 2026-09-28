@@ -22,6 +22,49 @@ class Config:
     # Passkeys: o domínio (sem esquema nem porta) e as origens exatas de onde o app é servido.
     webauthn_rp_id: str
     webauthn_origens: tuple[str, ...]
+    # E-mail: chave do HMAC (o e-mail nunca é gravado em texto) e como os e-mails saem.
+    email_pepper: str
+    email: "ConfigEmail"
+
+
+@dataclass(frozen=True)
+class ConfigEmail:
+    provedor: str  # "arquivo" (dev), "memoria" (testes), "resend" ou "smtp"
+    remetente: str
+    app_url: str  # base dos links mágicos, ex.: https://afinidade.onrender.com
+    pasta: str = "emails-dev"
+    resend_api_key: str = ""
+    smtp_host: str = ""
+    smtp_porta: int = 587
+    smtp_usuario: str = ""
+    smtp_senha: str = ""
+
+
+_PROVEDORES_PRODUCAO = {"resend", "smtp"}
+
+
+def _email(producao: bool, origens: tuple[str, ...]) -> ConfigEmail:
+    e = os.environ.get
+    cfg = ConfigEmail(
+        provedor=e("EMAIL_PROVEDOR", "arquivo"),
+        remetente=e("EMAIL_REMETENTE", "Afinidade <nao-responda@localhost>"),
+        app_url=e("APP_URL", origens[0]).rstrip("/"),
+        pasta=e("EMAIL_PASTA", "emails-dev"),
+        resend_api_key=e("RESEND_API_KEY", ""),
+        smtp_host=e("SMTP_HOST", ""),
+        smtp_porta=int(e("SMTP_PORTA", "587")),
+        smtp_usuario=e("SMTP_USUARIO", ""),
+        smtp_senha=e("SMTP_SENHA", ""),
+    )
+    if cfg.provedor not in {"arquivo", "memoria", *_PROVEDORES_PRODUCAO}:
+        raise RuntimeError(f"EMAIL_PROVEDOR desconhecido: {cfg.provedor}")
+    if producao and cfg.provedor not in _PROVEDORES_PRODUCAO:
+        raise RuntimeError("Em produção use EMAIL_PROVEDOR=resend ou smtp (veja docs/autenticacao.md).")
+    if cfg.provedor == "resend" and not cfg.resend_api_key:
+        raise RuntimeError("Defina RESEND_API_KEY para EMAIL_PROVEDOR=resend.")
+    if cfg.provedor == "smtp" and not (cfg.smtp_host and cfg.smtp_usuario and cfg.smtp_senha):
+        raise RuntimeError("Defina SMTP_HOST, SMTP_USUARIO e SMTP_SENHA para EMAIL_PROVEDOR=smtp.")
+    return cfg
 
 
 def _segredo(nome: str) -> str:
@@ -67,4 +110,6 @@ def config() -> Config:
         denuncias_para_revisao=int(e("DENUNCIAS_PARA_REVISAO", "3")),
         webauthn_rp_id=rp_id,
         webauthn_origens=origens,
+        email_pepper=_segredo("EMAIL_PEPPER"),
+        email=_email(producao, origens),
     )

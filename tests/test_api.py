@@ -2,25 +2,15 @@
 
 import pytest
 
-from tests.conftest import SENHA
+from tests.conftest import CADASTRO, bearer, criar_conta, entrar_por_email, novo_email
 
 pytestmark = pytest.mark.usefixtures("client")
 
 
 def registrar(client, handle, genero, busca_por, quero=(), curioso=(), limite=()):
-    r = client.post(
-        "/api/auth/registro",
-        json={
-            "handle": handle,
-            "senha": SENHA,
-            "data_nascimento": "1990-05-01",
-            "confirmo_maior_de_idade": True,
-            "consinto_dados_sensiveis": True,
-        },
-    )
-    assert r.status_code == 201, r.text
-    client.cookies.clear()  # estes testes usam Bearer; o cookie é testado à parte
-    h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    r = criar_conta(client, f"{handle}@teste.invalid", handle)
+    assert r.status_code == 200, r.text
+    h = bearer(r)
     r = client.put(
         "/api/perfil",
         headers=h,
@@ -89,22 +79,14 @@ def test_fluxo_completo(client):
 
 def test_nao_pode_curtir_quem_nao_passa_nos_filtros(client):
     h, _ = registrar(client, "zeta", "homem-cis", ["mulher-cis"], quero=["urophilia"])
-    alvo = client.post("/api/auth/login", json={"handle": "alfa", "senha": SENHA}).json()
-    alvo_id = client.get("/api/perfil", headers={"Authorization": f"Bearer {alvo['access_token']}"}).json()["id"]
+    alvo_id = client.get("/api/perfil", headers=bearer(entrar_por_email(client, "alfa@teste.invalid"))).json()["id"]
     r = client.post(f"/api/perfis/{alvo_id}/curtir", headers=h)
     assert r.status_code == 403
 
 
 def test_validacoes(client):
     menor = client.post(
-        "/api/auth/registro",
-        json={
-            "handle": "teen",
-            "senha": SENHA,
-            "data_nascimento": "2015-01-01",
-            "confirmo_maior_de_idade": True,
-            "consinto_dados_sensiveis": True,
-        },
+        "/api/auth/email/cadastro", json={**CADASTRO, "email": novo_email(), "data_nascimento": "2015-01-01"}
     )
     assert menor.status_code == 422
 
@@ -137,8 +119,10 @@ def test_validacoes(client):
 def test_excluir_conta_remove_tudo(client):
     h, _ = registrar(client, "theta", "outro", ["outro"])
     assert client.delete("/api/conta", headers=h).status_code == 204
-    r = client.post("/api/auth/login", json={"handle": "theta", "senha": SENHA})
-    assert r.status_code == 401
+    assert client.get("/api/perfil", headers=h).status_code == 401
+    # O e-mail sai junto: cadastrar de novo com ele cria uma conta NOVA
+    r = criar_conta(client, "theta@teste.invalid")
+    assert r.json()["novo"] is True and r.json()["handle"] != "theta"
 
 
 def test_simular(client):
@@ -160,16 +144,12 @@ def test_cabecalhos_de_seguranca_e_front(client):
 def test_cookie_httponly_e_csrf(client):
     c = client
     try:
-        r = c.post(
-            "/api/auth/registro",
-            json={
-                "handle": "iota",
-                "senha": SENHA,
-                "data_nascimento": "1990-05-01",
-                "confirmo_maior_de_idade": True,
-                "consinto_dados_sensiveis": True,
-            },
-        )
+        email = novo_email()
+        pedido = c.post("/api/auth/email/cadastro", json={**CADASTRO, "email": email}).json()
+        from tests.conftest import ultimo_email
+
+        codigo, _ = ultimo_email(c, email)
+        r = c.post("/api/auth/email/confirmar", json={"verificacao_id": pedido["verificacao_id"], "codigo": codigo})
         cookie = r.headers["set-cookie"].lower()
         assert "httponly" in cookie and "samesite=strict" in cookie and "path=/api" in cookie
         corpo = {"nome_exibicao": "Iota", "genero": "outro", "busca_por": ["outro"]}
@@ -185,54 +165,28 @@ def test_sair_invalida_tokens_antigos(client):
     h, _ = registrar(client, "kappa", "outro", ["outro"])
     assert client.post("/api/auth/sair", headers=h).status_code == 204
     assert client.get("/api/perfil", headers=h).status_code == 401
-    novo = client.post("/api/auth/login", json={"handle": "kappa", "senha": SENHA}).json()
-    assert client.get("/api/perfil", headers={"Authorization": f"Bearer {novo['access_token']}"}).status_code == 200
+    assert client.get("/api/perfil", headers=bearer(entrar_por_email(client, "kappa@teste.invalid"))).status_code == 200
 
 
 def test_consentimento_obrigatorio(client):
     r = client.post(
-        "/api/auth/registro",
-        json={
-            "handle": "lambda",
-            "senha": SENHA,
-            "data_nascimento": "1990-05-01",
-            "confirmo_maior_de_idade": True,
-            "consinto_dados_sensiveis": False,
-        },
+        "/api/auth/email/cadastro", json={**CADASTRO, "email": novo_email(), "consinto_dados_sensiveis": False}
     )
     assert r.status_code == 422
 
 
 def test_apelido_gerado_automaticamente(client):
-    r = client.post(
-        "/api/auth/registro",
-        json={
-            "senha": SENHA,
-            "data_nascimento": "1990-05-01",
-            "confirmo_maior_de_idade": True,
-            "consinto_dados_sensiveis": True,
-        },
-    )
-    client.cookies.clear()
-    assert r.status_code == 201
+    email = novo_email()
+    r = criar_conta(client, email)
+    assert r.status_code == 200 and r.json()["novo"] is True
     handle = r.json()["handle"]
     assert handle.startswith("anon_") and len(handle) == 13
-    assert client.post("/api/auth/login", json={"handle": handle, "senha": SENHA}).status_code == 200
-    client.cookies.clear()
+    assert entrar_por_email(client, email).json()["handle"] == handle
 
 
 def test_apelido_repetido(client, pessoa):
     p = pessoa()
-    r = client.post(
-        "/api/auth/registro",
-        json={
-            "handle": p.handle,
-            "senha": SENHA,
-            "data_nascimento": "1990-05-01",
-            "confirmo_maior_de_idade": True,
-            "consinto_dados_sensiveis": True,
-        },
-    )
+    r = client.post("/api/auth/email/cadastro", json={**CADASTRO, "email": novo_email(), "handle": p.handle})
     assert r.status_code == 409
 
 

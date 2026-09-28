@@ -4,7 +4,15 @@ from datetime import date, datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, BeforeValidator, Field, StringConstraints, field_validator, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    BeforeValidator,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 
 def _normalizar(valor):
@@ -23,10 +31,24 @@ MAX_TAGS_POR_NIVEL = 100
 # ---------- autenticação ----------
 
 
+def _email_valido(valor: str) -> str:
+    from .verificacao import normalizar_email
+
+    return normalizar_email(valor)
+
+
+Email = Annotated[str, Field(max_length=320), AfterValidator(_email_valido)]
+
+
+class PedidoEntrar(BaseModel):
+    email: Email
+
+
 class Cadastro(BaseModel):
-    """Dados comuns a todo cadastro (com senha ou com passkey). A data de nascimento só é
+    """Cadastro por e-mail. O e-mail só é guardado como hash; a data de nascimento só é
     usada nesta validação e nunca é gravada."""
 
+    email: Email
     # Opcional: sem apelido, o sistema gera um aleatório (ex.: anon_k3v9x2mq).
     handle: Handle | None = None
     data_nascimento: date
@@ -45,19 +67,26 @@ class Cadastro(BaseModel):
         return self
 
 
-class Registro(Cadastro):
-    senha: str = Field(min_length=10, max_length=128)
+class VerificacaoEnviada(BaseModel):
+    """Resposta idêntica exista ou não conta com o e-mail (ninguém descobre quem tem conta)."""
+
+    verificacao_id: UUID
 
 
-class Login(BaseModel):
-    handle: Handle
-    senha: str = Field(max_length=128)
+class ConfirmarCodigo(BaseModel):
+    verificacao_id: UUID
+    codigo: Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^\d{6}$")]
+
+
+class ConfirmarLink(BaseModel):
+    token: str = Field(min_length=20, max_length=100)
 
 
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"  # noqa: S105 (tipo do token, não é senha)
     handle: str
+    novo: bool = False  # conta criada agora: o front oferece ativar a biometria
 
 
 # ---------- passkeys ----------

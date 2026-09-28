@@ -9,10 +9,10 @@ de privacidade do app.
 Requisitos: Python 3.11+, Docker (só para o PostgreSQL) e `make`.
 
 ```bash
-cp .env.example .env          # gere JWT_SECRET e CHAVE_MENSAGENS com o comando indicado no arquivo
+cp .env.example .env          # gere JWT_SECRET, CHAVE_MENSAGENS e EMAIL_PEPPER com o comando do arquivo
 make instalar                 # dependências de desenvolvimento + hooks de pre-commit
 make db                       # sobe o PostgreSQL local (cria também o banco de testes)
-make rodar                    # http://localhost:8000  ·  documentação da API em /docs
+make rodar                    # http://localhost:8000 · API em /docs · códigos de acesso em emails-dev/
 make verificar                # lint + testes + auditoria: exatamente o que o CI roda
 ```
 
@@ -24,7 +24,7 @@ make verificar                # lint + testes + auditoria: exatamente o que o CI
 app/
 ├── main.py          montagem: ciclo de vida, cabeçalhos de segurança, registro das rotas
 ├── config.py        todas as variáveis de ambiente (um único lugar)
-├── security.py      senhas, JWT, cookie, anti-CSRF e as dependências de sessão
+├── security.py      JWT, cookie, anti-CSRF e as dependências de sessão
 ├── deps.py          dependências comuns das rotas (perfil obrigatório, perfil visível, cifrador)
 ├── routes/          CAMADA HTTP — uma por domínio: valida entrada, escolhe status, chama o domínio
 │   ├── auth.py  perfil.py  descoberta.py  chat.py  fotos.py  moderacao.py  saude.py
@@ -36,6 +36,8 @@ app/
 ├── mensagens.py     chat efêmero        ├── fotos.py      fotos protegidas
 ├── moderacao.py     denúncias e revisão ├── geo.py        geohash e distâncias
 ├── cripto.py        AES-GCM para dados em repouso
+├── verificacao.py   código/link por e-mail (e-mail só como HMAC)  ├── email.py   carteiros (arquivo, Resend, SMTP)
+├── passkeys.py      biometria (WebAuthn)
 ├── ratelimit.py     limite de requisições sem guardar IPs
 └── admin.py         linha de comando (promover moderador, migrar)
 db/migrations/       uma migração SQL por arquivo, aplicadas em ordem na inicialização
@@ -64,7 +66,7 @@ Exemplo: "favoritar perfis".
 
 ### Checklist de privacidade (vale para todo PR)
 
-- [ ] Não grava nada que identifique a pessoa fora do app (e-mail, telefone, IP, coordenada exata, EXIF).
+- [ ] Não grava nada que identifique a pessoa fora do app (telefone, IP, coordenada exata, EXIF). E-mail **só** via `verificacao.hash_email`, nunca em texto, nem em log.
 - [ ] Respeita bloqueios nas duas direções e esconde contas `em_revisao`/`banida` (use `exigir_perfil_visivel`).
 - [ ] Ações que alcançam outra pessoa usam `conta_ativa` (e não só `conta_atual`).
 - [ ] Conteúdo privado (mensagens, fotos, evidências) é cifrado com `Cifrador` e um contexto próprio.
