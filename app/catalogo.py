@@ -10,8 +10,8 @@ class Catalogo:
 
     @classmethod
     async def para(cls, con, linhas):
-        ids_genero = {g for l in linhas for g in [l["genero_id"], *l["busca_por"]]}
-        ids_tag = {t for l in linhas for t in [*l["tags_quero"], *l["tags_curioso"], *l["tags_limite"]]}
+        ids_genero = {g for linha in linhas for g in [linha["genero_id"], *linha["busca_por"]]}
+        ids_tag = {t for linha in linhas for t in [*linha["tags_quero"], *linha["tags_curioso"], *linha["tags_limite"]]}
         return cls(await repo.slugs_por_id(con, "generos", ids_genero), await repo.slugs_por_id(con, "tags", ids_tag))
 
     def tags_de(self, ids) -> list[str]:
@@ -19,7 +19,10 @@ class Catalogo:
 
     def publico(self, linha) -> PerfilPublico:
         return PerfilPublico(
-            id=linha["conta_id"], nome_exibicao=linha["nome_exibicao"], bio=linha["bio"],
+            id=linha["conta_id"],
+            nome_exibicao=linha["nome_exibicao"],
+            bio=linha["bio"],
             genero=self.generos[linha["genero_id"]],
-            quero=self.tags_de(linha["tags_quero"]), curioso=self.tags_de(linha["tags_curioso"]),
+            quero=self.tags_de(linha["tags_quero"]),
+            curioso=self.tags_de(linha["tags_curioso"]),
         )

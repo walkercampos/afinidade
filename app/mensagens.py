@@ -1,4 +1,5 @@
 """Chat entre conexões com mensagens efêmeras e cifradas em repouso."""
+
 from datetime import timedelta
 from uuid import UUID
 
@@ -32,7 +33,9 @@ def _para_dict(linha, eu: UUID, cifrador: Cifrador) -> dict:
 async def enviar(con, cifrador: Cifrador, de: UUID, para: UUID, texto: str) -> dict:
     linha = await con.fetchrow(
         "INSERT INTO mensagens (de_id, para_id, conteudo) VALUES ($1, $2, $3) RETURNING *",
-        de, para, cifrador.cifrar(texto, _contexto(de, para)),
+        de,
+        para,
+        cifrador.cifrar(texto, _contexto(de, para)),
     )
     return _para_dict(linha, de, cifrador)
 
@@ -45,19 +48,25 @@ async def listar(con, cifrador: Cifrador, eu: UUID, outro: UUID, *, apos: int = 
             f"""SELECT m.* FROM mensagens m
                 WHERE {_DA_CONVERSA} AND {_VISIVEL} AND m.id > $4
                 ORDER BY m.id LIMIT $5""",
-            eu, outro, EXPIRA_APOS_LEITURA, apos, limite,
+            eu,
+            outro,
+            EXPIRA_APOS_LEITURA,
+            apos,
+            limite,
         )
-        recebidas = [l["id"] for l in linhas if l["para_id"] == eu and l["lida_em"] is None]
+        recebidas = [linha["id"] for linha in linhas if linha["para_id"] == eu and linha["lida_em"] is None]
         lidas_agora = {}
         if recebidas:
-            lidas_agora = dict(await con.fetch(
-                "UPDATE mensagens SET lida_em = now() WHERE id = ANY($1::bigint[]) RETURNING id, lida_em", recebidas
-            ))
+            lidas_agora = dict(
+                await con.fetch(
+                    "UPDATE mensagens SET lida_em = now() WHERE id = ANY($1::bigint[]) RETURNING id, lida_em", recebidas
+                )
+            )
     resultado = []
-    for l in linhas:
-        d = _para_dict(l, eu, cifrador)
-        if l["id"] in lidas_agora:
-            d["lida_em"] = lidas_agora[l["id"]]
+    for linha in linhas:
+        d = _para_dict(linha, eu, cifrador)
+        if linha["id"] in lidas_agora:
+            d["lida_em"] = lidas_agora[linha["id"]]
             d["expira_em"] = d["lida_em"] + EXPIRA_APOS_LEITURA
         resultado.append(d)
     return resultado
@@ -68,13 +77,18 @@ async def ultimas_da_conversa(con, cifrador: Cifrador, eu: UUID, outro: UUID, n:
     linhas = await con.fetch(
         f"""SELECT m.* FROM mensagens m WHERE {_DA_CONVERSA} AND {_VISIVEL}
             ORDER BY m.id DESC LIMIT $4""",
-        eu, outro, EXPIRA_APOS_LEITURA, n,
+        eu,
+        outro,
+        EXPIRA_APOS_LEITURA,
+        n,
     )
     return [
-        {"de": "denunciante" if l["de_id"] == eu else "denunciado",
-         "texto": cifrador.decifrar(l["conteudo"], _contexto(l["de_id"], l["para_id"])),
-         "criado_em": l["criado_em"].isoformat()}
-        for l in reversed(linhas)
+        {
+            "de": "denunciante" if linha["de_id"] == eu else "denunciado",
+            "texto": cifrador.decifrar(linha["conteudo"], _contexto(linha["de_id"], linha["para_id"])),
+            "criado_em": linha["criado_em"].isoformat(),
+        }
+        for linha in reversed(linhas)
     ]
 
 
@@ -87,9 +101,10 @@ async def resumo_conversas(con, eu: UUID) -> dict[UUID, tuple[int, object]]:
            FROM mensagens m
            WHERE (m.de_id = $1 OR m.para_id = $1) AND (m.lida_em IS NULL OR m.lida_em > now() - $2::interval)
            GROUP BY 1""",
-        eu, EXPIRA_APOS_LEITURA,
+        eu,
+        EXPIRA_APOS_LEITURA,
     )
-    return {l["outro"]: (l["nao_lidas"], l["ultima_em"]) for l in linhas}
+    return {linha["outro"]: (linha["nao_lidas"], linha["ultima_em"]) for linha in linhas}
 
 
 async def apagar_minhas(con, eu: UUID, outro: UUID) -> None:
@@ -102,6 +117,7 @@ async def apagar_expiradas(con, retencao_dias: int) -> int:
         """DELETE FROM mensagens
            WHERE lida_em <= now() - $1::interval
               OR (lida_em IS NULL AND criado_em <= now() - make_interval(days => $2))""",
-        EXPIRA_APOS_LEITURA, retencao_dias,
+        EXPIRA_APOS_LEITURA,
+        retencao_dias,
     )
     return int(status.split()[-1])

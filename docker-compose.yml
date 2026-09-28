@@ -5,8 +5,11 @@ services:
       POSTGRES_USER: matchmaking
       POSTGRES_PASSWORD: matchmaking
       POSTGRES_DB: matchmaking
+    ports:
+      - "127.0.0.1:5432:5432"   # só na máquina local, para `make testar` e `make rodar`
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./db/docker-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U matchmaking"]
       interval: 2s

@@ -1,9 +1,10 @@
 """Tarefas administrativas pela linha de comando (rodam com as mesmas variáveis de ambiente da API).
 
-    python -m app.admin moderador <apelido>        # dá o papel de moderador(a)
-    python -m app.admin usuario <apelido>          # remove o papel
-    python -m app.admin migrar                     # aplica migrações pendentes
+python -m app.admin moderador <apelido>        # dá o papel de moderador(a)
+python -m app.admin usuario <apelido>          # remove o papel
+python -m app.admin migrar                     # aplica migrações pendentes
 """
+
 import asyncio
 import sys
 

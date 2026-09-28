@@ -4,6 +4,7 @@ Não é criptografia ponta a ponta: o servidor tem a chave. O que ela protege é
 mais comum de vazamento — dump do banco, backup exposto, acesso indevido ao provedor do
 banco —, já que a chave vive só na variável de ambiente do servidor da API.
 """
+
 import hashlib
 import secrets
 

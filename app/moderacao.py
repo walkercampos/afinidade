@@ -1,4 +1,5 @@
 """Denúncias, revisão automática e decisões de moderação."""
+
 import json
 from uuid import UUID
 
@@ -17,8 +18,17 @@ def _contexto_evidencia(denunciado: UUID) -> bytes:
     return b"evidencia|" + denunciado.bytes
 
 
-async def denunciar(con, cifrador: Cifrador, *, denunciante: UUID, denunciado: UUID, motivo: str,
-                    detalhes: str | None, incluir_mensagens: bool, limiar: int) -> None:
+async def denunciar(
+    con,
+    cifrador: Cifrador,
+    *,
+    denunciante: UUID,
+    denunciado: UUID,
+    motivo: str,
+    detalhes: str | None,
+    incluir_mensagens: bool,
+    limiar: int,
+) -> None:
     """Registra a denúncia, bloqueia automaticamente e avalia a revisão automática.
 
     As evidências são copiadas ANTES do bloqueio, porque bloquear apaga a conversa.
@@ -33,7 +43,11 @@ async def denunciar(con, cifrador: Cifrador, *, denunciante: UUID, denunciado: U
             """INSERT INTO denuncias (denunciante_id, denunciado_id, motivo, detalhes, evidencias)
                VALUES ($1, $2, $3, $4, $5)
                ON CONFLICT (denunciante_id, denunciado_id) WHERE status = 'aberta' DO NOTHING""",
-            denunciante, denunciado, motivo, detalhes, evidencias,
+            denunciante,
+            denunciado,
+            motivo,
+            detalhes,
+            evidencias,
         )
         await repo.bloquear(con, denunciante, denunciado)
         await _avaliar_revisao(con, denunciado, motivo, limiar)
@@ -56,7 +70,8 @@ async def _avaliar_revisao(con, conta: UUID, motivo: str, limiar: int) -> None:
     if movida:
         await con.execute(
             "INSERT INTO moderacao_log (conta_id, acao, observacao) VALUES ($1, 'revisao_automatica', $2)",
-            conta, f"motivo: {motivo}",
+            conta,
+            f"motivo: {motivo}",
         )
 
 
@@ -80,16 +95,23 @@ async def fila(con, cifrador: Cifrador) -> list[dict]:
                WHERE denunciado_id = $1 AND status = 'aberta' ORDER BY criado_em""",
             c["id"],
         )
-        resultado.append({
-            "conta_id": c["id"], "handle": c["handle"], "situacao": c["situacao"],
-            "perfil": await repo.buscar_perfil(con, c["id"]),
-            "denuncias": [
-                {**{k: d[k] for k in ("id", "motivo", "detalhes", "criado_em")},
-                 "evidencias": json.loads(cifrador.decifrar(d["evidencias"], _contexto_evidencia(c["id"])))
-                 if d["evidencias"] else None}
-                for d in denuncias
-            ],
-        })
+        resultado.append(
+            {
+                "conta_id": c["id"],
+                "handle": c["handle"],
+                "situacao": c["situacao"],
+                "perfil": await repo.buscar_perfil(con, c["id"]),
+                "denuncias": [
+                    {
+                        **{k: d[k] for k in ("id", "motivo", "detalhes", "criado_em")},
+                        "evidencias": json.loads(cifrador.decifrar(d["evidencias"], _contexto_evidencia(c["id"])))
+                        if d["evidencias"]
+                        else None,
+                    }
+                    for d in denuncias
+                ],
+            }
+        )
     return resultado
 
 
@@ -111,10 +133,14 @@ async def decidir(con, *, moderador: UUID, conta: UUID, acao: str, observacao: s
         await con.execute(
             """UPDATE denuncias SET status = $2, resolvido_em = now()
                WHERE denunciado_id = $1 AND status = 'aberta'""",
-            conta, status,
+            conta,
+            status,
         )
         await con.execute(
             "INSERT INTO moderacao_log (moderador_id, conta_id, acao, observacao) VALUES ($1, $2, $3, $4)",
-            moderador, conta, acao, observacao,
+            moderador,
+            conta,
+            acao,
+            observacao,
         )
         return True

@@ -3,9 +3,10 @@
 Os perfis usam conjuntos (frozenset) para que as operações de interseção sejam O(min(n, m)).
 Os elementos podem ser slugs (str) ou IDs numéricos do catálogo (int) — o algoritmo não se importa.
 """
+
 import math
+from collections.abc import Hashable, Iterable
 from dataclasses import dataclass, field
-from typing import Hashable, Iterable
 
 PESO_QUERO_MUTUO = 3
 PESO_QUERO_CURIOSO = 2
@@ -26,18 +27,28 @@ class PerfilMatch:
     limite_absoluto: frozenset = field(default_factory=frozenset)
 
     @classmethod
-    def criar(cls, id, genero, busca_por: Iterable, quero: Iterable = (),
-              curioso: Iterable = (), limite_absoluto: Iterable = ()):
-        return cls(id, genero, frozenset(busca_por), frozenset(quero),
-                   frozenset(curioso), frozenset(limite_absoluto))
+    def criar(
+        cls,
+        id,
+        genero,
+        busca_por: Iterable,
+        quero: Iterable = (),
+        curioso: Iterable = (),
+        limite_absoluto: Iterable = (),
+    ):
+        return cls(id, genero, frozenset(busca_por), frozenset(quero), frozenset(curioso), frozenset(limite_absoluto))
 
     @classmethod
     def de_dict(cls, dados: dict):
         """Aceita o mesmo payload do script original."""
         tags = dados.get("tags_interesses", {})
         return cls.criar(
-            dados.get("id"), dados["genero"], dados["busca_por"],
-            tags.get("quero", []), tags.get("curioso", []), tags.get("limite_absoluto", []),
+            dados.get("id"),
+            dados["genero"],
+            dados["busca_por"],
+            tags.get("quero", []),
+            tags.get("curioso", []),
+            tags.get("limite_absoluto", []),
         )
 
 
@@ -119,7 +130,7 @@ def score_mutuo(a: PerfilMatch, b: PerfilMatch) -> int:
 
 # ---------- pessoas com as mesmas preferências ----------
 
-VALOR_QUERO = 2    # escala x2 para manter a conta em inteiros (quero = 1,0 ; curioso = 0,5)
+VALOR_QUERO = 2  # escala x2 para manter a conta em inteiros (quero = 1,0 ; curioso = 0,5)
 VALOR_CURIOSO = 1
 
 

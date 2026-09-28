@@ -13,8 +13,9 @@ def moderador(pessoa, client):
 
 def _envelhecer(db, *pessoas):
     """Contas novas (< 24 h) não contam para a revisão automática por volume."""
-    db.execute("UPDATE contas SET criado_em = now() - interval '2 days' WHERE id = ANY($1::uuid[])",
-               [p.id for p in pessoas])
+    db.execute(
+        "UPDATE contas SET criado_em = now() - interval '2 days' WHERE id = ANY($1::uuid[])", [p.id for p in pessoas]
+    )
 
 
 def test_denunciar_bloqueia_na_hora(pessoa):

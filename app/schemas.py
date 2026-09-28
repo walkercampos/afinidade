@@ -1,18 +1,27 @@
 """Contratos da API (entrada e saída). Um bloco por domínio, na mesma ordem das rotas."""
+
 from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
+from pydantic import BaseModel, BeforeValidator, Field, StringConstraints, field_validator, model_validator
 
-Slug = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=True, pattern=r"^[a-z0-9-]{1,40}$")]
-Handle = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=True, pattern=r"^[a-z0-9_]{3,30}$")]
+
+def _normalizar(valor):
+    # Precisa rodar ANTES do pattern: o StringConstraints valida o texto como chegou,
+    # então "Fulano_1" seria rejeitado em vez de virar "fulano_1".
+    return valor.strip().lower() if isinstance(valor, str) else valor
+
+
+Slug = Annotated[str, BeforeValidator(_normalizar), StringConstraints(pattern=r"^[a-z0-9-]{1,40}$")]
+Handle = Annotated[str, BeforeValidator(_normalizar), StringConstraints(pattern=r"^[a-z0-9_]{3,30}$")]
 
 IDADE_MINIMA = 18
 MAX_TAGS_POR_NIVEL = 100
 
 
 # ---------- autenticação ----------
+
 
 class Registro(BaseModel):
     # Opcional: sem apelido, o sistema gera um aleatório (ex.: anon_k3v9x2mq).
@@ -41,7 +50,7 @@ class Login(BaseModel):
 
 class Token(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = "bearer"  # noqa: S105 (tipo do token, não é senha)
     handle: str
 
 
@@ -60,8 +69,11 @@ class TagsInteresses(BaseModel):
 
     @model_validator(mode="after")
     def niveis_disjuntos(self):
-        repetidas = (set(self.quero) & set(self.curioso)) | (set(self.quero) & set(self.limite_absoluto)) \
+        repetidas = (
+            (set(self.quero) & set(self.curioso))
+            | (set(self.quero) & set(self.limite_absoluto))
             | (set(self.curioso) & set(self.limite_absoluto))
+        )
         if repetidas:
             raise ValueError(f"Cada tag só pode estar em um nível: {sorted(repetidas)}")
         return self
@@ -78,13 +90,14 @@ class PerfilEntrada(BaseModel):
 
 class Localizacao(BaseModel):
     """Coordenadas do aparelho. São convertidas numa célula de ~5 km e descartadas."""
+
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
     distancia_max_km: int | None = Field(default=None, ge=5, le=500)
 
 
 class LocalizacaoSalva(BaseModel):
-    regiao: str | None = None           # célula geohash (~5 km), nunca a coordenada
+    regiao: str | None = None  # célula geohash (~5 km), nunca a coordenada
     distancia_max_km: int | None = None
 
 
@@ -95,6 +108,7 @@ class PerfilProprio(PerfilEntrada):
 
 class PerfilPublico(BaseModel):
     """O que outras pessoas veem. Limites absolutos ficam de fora: servem só para filtrar."""
+
     id: UUID
     nome_exibicao: str
     bio: str | None
@@ -105,10 +119,11 @@ class PerfilPublico(BaseModel):
 
 # ---------- fotos ----------
 
+
 class Foto(BaseModel):
     id: UUID
-    hash: str          # SHA-256 da imagem processada (sem metadados)
-    nitida: bool       # se quem pediu pode ver a versão sem blur
+    hash: str  # SHA-256 da imagem processada (sem metadados)
+    nitida: bool  # se quem pediu pode ver a versão sem blur
     url: str
 
 
@@ -129,10 +144,10 @@ class Compatibilidade(BaseModel):
     match_valido: bool
     score_porcentagem: int
     score_mutuo: int
-    similaridade: int = 0                 # 0-100: quão parecidos são os gostos
+    similaridade: int = 0  # 0-100: quão parecidos são os gostos
     tags_em_comum: list[str] = []
-    tags_mesmo_nivel: list[str] = []      # ambos querem, ou ambos têm curiosidade
-    distancia_km: int | None = None       # em faixas de 5 km ("até N km")
+    tags_mesmo_nivel: list[str] = []  # ambos querem, ou ambos têm curiosidade
+    distancia_km: int | None = None  # em faixas de 5 km ("até N km")
     motivo: str
 
 
@@ -206,6 +221,7 @@ class Decisao(BaseModel):
 
 # ---------- chat ----------
 
+
 class NovaMensagem(BaseModel):
     texto: str = Field(min_length=1, max_length=2000)
 
@@ -224,5 +240,3 @@ class Conversa(BaseModel):
     perfil: PerfilPublico
     nao_lidas: int
     ultima_em: datetime | None
-
-

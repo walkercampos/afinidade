@@ -1,28 +1,39 @@
 """O ranking roda em SQL (descoberta.py) e os detalhes em Python (matcher.py).
 Este teste garante que os dois calculam EXATAMENTE a mesma coisa."""
+
 import random
 
 from app.matcher import PerfilMatch, calcular_match, score_mutuo, similaridade
 
-TAGS = ["bondage", "leather", "latex", "dirty-talk", "impact-play", "wax-play", "roleplay", "voyeurism",
-        "exibicionismo", "podolatria"]
+TAGS = [
+    "bondage",
+    "leather",
+    "latex",
+    "dirty-talk",
+    "impact-play",
+    "wax-play",
+    "roleplay",
+    "voyeurism",
+    "exibicionismo",
+    "podolatria",
+]
 
 
 def _perfil_aleatorio(rng):
     tags = rng.sample(TAGS, rng.randint(0, len(TAGS)))
     cortes = sorted(rng.randint(0, len(tags)) for _ in range(2))
-    return tags[:cortes[0]], tags[cortes[0]:cortes[1]], tags[cortes[1]:]
+    return tags[: cortes[0]], tags[cortes[0] : cortes[1]], tags[cortes[1] :]
 
 
 def test_sql_e_python_dao_os_mesmos_scores(pessoa):
-    rng = random.Random(42)
+    rng = random.Random(42)  # noqa: S311 (reprodutibilidade, não criptografia)
     eu_tags = (["bondage", "leather", "dirty-talk"], ["impact-play", "voyeurism"], ["podolatria"])
     eu = pessoa("genero-fluido", ["agenero"], quero=eu_tags[0], curioso=eu_tags[1], limite=eu_tags[2])
     outros = {}
     for _ in range(60):
-        q, c, l = _perfil_aleatorio(rng)
-        p = pessoa("agenero", ["genero-fluido"], quero=q, curioso=c, limite=l)
-        outros[p.id] = PerfilMatch.criar(p.id, 1, {1}, q, c, l)
+        q, c, lim = _perfil_aleatorio(rng)
+        p = pessoa("agenero", ["genero-fluido"], quero=q, curioso=c, limite=lim)
+        outros[p.id] = PerfilMatch.criar(p.id, 1, {1}, q, c, lim)
 
     eu_match = PerfilMatch.criar(eu.id, 1, {1}, *eu_tags)
     esperados = {i: m for i, m in outros.items() if calcular_match(eu_match, m).match_valido}

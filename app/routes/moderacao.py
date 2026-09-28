@@ -16,8 +16,9 @@ router = APIRouter(tags=["moderação"])
 
 
 @router.post("/perfis/{alvo}/denunciar", status_code=status.HTTP_204_NO_CONTENT)
-async def denunciar(alvo: UUID, dados: Denuncia, eu: UUID = Depends(conta_atual),
-                    con=Depends(conexao), cif=Depends(cifrador)):
+async def denunciar(
+    alvo: UUID, dados: Denuncia, eu: UUID = Depends(conta_atual), con=Depends(conexao), cif=Depends(cifrador)
+):
     """Denuncia e bloqueia na hora. Com `incluir_mensagens`, a conversa recente vai junto
     como evidência para a moderação (é copiada antes de o bloqueio apagá-la)."""
     if alvo == eu:
@@ -27,8 +28,14 @@ async def denunciar(alvo: UUID, dados: Denuncia, eu: UUID = Depends(conta_atual)
     if not await repo.existe_conta(con, alvo):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Perfil não encontrado")
     await moderacao.denunciar(
-        con, cif, denunciante=eu, denunciado=alvo, motivo=dados.motivo, detalhes=dados.detalhes,
-        incluir_mensagens=dados.incluir_mensagens, limiar=cfg.denuncias_para_revisao,
+        con,
+        cif,
+        denunciante=eu,
+        denunciado=alvo,
+        motivo=dados.motivo,
+        detalhes=dados.detalhes,
+        incluir_mensagens=dados.incluir_mensagens,
+        limiar=cfg.denuncias_para_revisao,
     )
 
 

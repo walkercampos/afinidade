@@ -9,7 +9,12 @@ from ..db import conexao
 from ..ratelimit import exigir_limite, ip_do_cliente
 from ..schemas import Login, Registro, Token
 from ..security import (
-    HASH_FALSO, apagar_cookie_sessao, conta_atual, emitir_token, gerar_hash_senha, gravar_cookie_sessao,
+    HASH_FALSO,
+    apagar_cookie_sessao,
+    conta_atual,
+    emitir_token,
+    gerar_hash_senha,
+    gravar_cookie_sessao,
     verificar_senha,
 )
 

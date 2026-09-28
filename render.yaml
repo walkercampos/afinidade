@@ -5,11 +5,17 @@ services:
     name: matchmaking
     runtime: docker
     plan: free
-    healthCheckPath: /api/catalogo/generos
+    healthCheckPath: /api/saude
+    # O deploy é disparado pela pipeline do GitHub Actions só depois que lint, testes e
+    # auditoria passam (veja .github/workflows/matchmaking.yml na raiz do repositório).
+    autoDeploy: false
     envVars:
       - key: AMBIENTE
         value: producao
       - key: JWT_SECRET
+        generateValue: true
+      # Cifra mensagens e fotos. Depois de gerada, NÃO troque (os dados antigos ficariam ilegíveis).
+      - key: CHAVE_MENSAGENS
         generateValue: true
       - key: DATABASE_URL
         sync: false

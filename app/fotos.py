@@ -1,4 +1,5 @@
 """Fotos protegidas: processamento no servidor, blur irreversível e controle de acesso."""
+
 import hashlib
 import io
 import warnings
@@ -73,6 +74,7 @@ def _contexto(foto_id: UUID, versao: str) -> bytes:
 
 # ---------- banco ----------
 
+
 async def salvar(con, cifrador: Cifrador, conta: UUID, nitida: bytes, borrada: bytes, sha: str):
     """None se a conta já tem o máximo de fotos. Enviar a mesma foto de novo devolve a existente."""
     async with con.transaction():
@@ -85,7 +87,9 @@ async def salvar(con, cifrador: Cifrador, conta: UUID, nitida: bytes, borrada: b
         foto_id = await con.fetchval("SELECT gen_random_uuid()")
         return await con.fetchrow(
             "INSERT INTO fotos (id, conta_id, hash, nitida, borrada) VALUES ($1, $2, $3, $4, $5) RETURNING id, hash",
-            foto_id, conta, sha,
+            foto_id,
+            conta,
+            sha,
             cifrador.cifrar_bytes(nitida, _contexto(foto_id, "nitida")),
             cifrador.cifrar_bytes(borrada, _contexto(foto_id, "borrada")),
         )
@@ -109,9 +113,10 @@ async def donos_que_liberaram(con, visualizador: UUID, donos: list[UUID]) -> set
     linhas = await con.fetch(
         """SELECT dono_id FROM acessos_fotos
            WHERE visualizador_id = $1 AND dono_id = ANY($2::uuid[]) AND status = 'aprovado'""",
-        visualizador, donos,
+        visualizador,
+        donos,
     )
-    return {l["dono_id"] for l in linhas}
+    return {linha["dono_id"] for linha in linhas}
 
 
 async def ler_imagem(con, cifrador: Cifrador, foto_id: UUID, *, nitida: bool) -> bytes | None:
@@ -130,7 +135,8 @@ async def solicitar(con, dono: UUID, visualizador: UUID) -> str:
         """INSERT INTO acessos_fotos (dono_id, visualizador_id) VALUES ($1, $2)
            ON CONFLICT (dono_id, visualizador_id) DO UPDATE SET status = acessos_fotos.status
            RETURNING status""",
-        dono, visualizador,
+        dono,
+        visualizador,
     )
 
 
@@ -148,6 +154,8 @@ async def responder(con, dono: UUID, visualizador: UUID, aprovar: bool) -> bool:
     status = await con.execute(
         """UPDATE acessos_fotos SET status = $3, respondido_em = now()
            WHERE dono_id = $1 AND visualizador_id = $2""",
-        dono, visualizador, "aprovado" if aprovar else "negado",
+        dono,
+        visualizador,
+        "aprovado" if aprovar else "negado",
     )
     return status != "UPDATE 0"

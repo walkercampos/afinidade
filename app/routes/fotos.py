@@ -23,8 +23,7 @@ def _foto(linha, nitida: bool) -> Foto:
 
 
 @router.post("/fotos", response_model=Foto, status_code=status.HTTP_201_CREATED)
-async def enviar_foto(request: Request, eu: UUID = Depends(conta_atual), con=Depends(conexao),
-                      cif=Depends(cifrador)):
+async def enviar_foto(request: Request, eu: UUID = Depends(conta_atual), con=Depends(conexao), cif=Depends(cifrador)):
     """Corpo = bytes da imagem (Content-Type image/jpeg, image/png ou image/webp; até 5 MB).
 
     O servidor remove todos os metadados (inclusive GPS), redimensiona e gera a versão
@@ -43,7 +42,7 @@ async def enviar_foto(request: Request, eu: UUID = Depends(conta_atual), con=Dep
     try:
         nitida, borrada, sha = fotos.processar(bytes(dados))
     except fotos.ImagemInvalida as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e))
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
     linha = await fotos.salvar(con, cif, eu, nitida, borrada, sha)
     if linha is None:
         raise HTTPException(status.HTTP_409_CONFLICT, f"Máximo de {fotos.MAX_FOTOS_POR_CONTA} fotos")
@@ -52,7 +51,7 @@ async def enviar_foto(request: Request, eu: UUID = Depends(conta_atual), con=Dep
 
 @router.get("/fotos", response_model=list[Foto])
 async def minhas_fotos(eu: UUID = Depends(conta_atual), con=Depends(conexao)):
-    return [_foto(l, True) for l in await fotos.listar_de(con, eu)]
+    return [_foto(linha, True) for linha in await fotos.listar_de(con, eu)]
 
 
 @router.delete("/fotos/{foto_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -98,15 +97,18 @@ async def solicitacoes(eu: UUID = Depends(conta_atual), con=Depends(conexao)):
     perfis = {p["conta_id"]: p for p in [await repo.buscar_perfil(con, x["visualizador_id"]) for x in pedidos] if p}
     cat = await Catalogo.para(con, list(perfis.values()))
     return [
-        SolicitacaoAcesso(visualizador=cat.publico(perfis[x["visualizador_id"]]), status=x["status"],
-                          criado_em=x["criado_em"])
-        for x in pedidos if x["visualizador_id"] in perfis
+        SolicitacaoAcesso(
+            visualizador=cat.publico(perfis[x["visualizador_id"]]), status=x["status"], criado_em=x["criado_em"]
+        )
+        for x in pedidos
+        if x["visualizador_id"] in perfis
     ]
 
 
 @router.post("/fotos/solicitacoes/{visualizador}", status_code=status.HTTP_204_NO_CONTENT)
-async def responder(visualizador: UUID, dados: RespostaSolicitacao, eu: UUID = Depends(conta_atual),
-                    con=Depends(conexao)):
+async def responder(
+    visualizador: UUID, dados: RespostaSolicitacao, eu: UUID = Depends(conta_atual), con=Depends(conexao)
+):
     """Aprova ou nega um pedido. Também serve para revogar um acesso já aprovado (aprovar=false)."""
     if not await fotos.responder(con, eu, visualizador, dados.aprovar):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido não encontrado")

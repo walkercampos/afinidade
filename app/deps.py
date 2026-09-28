@@ -1,4 +1,5 @@
 """Dependências compartilhadas pelas rotas (injetadas com Depends)."""
+
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status

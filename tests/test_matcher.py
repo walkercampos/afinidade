@@ -1,9 +1,16 @@
 from app.matcher import (
-    MOTIVO_GENERO, MOTIVO_LIMITES, PerfilMatch, calcular_match, score_mutuo,
+    MOTIVO_GENERO,
+    MOTIVO_LIMITES,
+    PerfilMatch,
+    calcular_match,
+    score_mutuo,
 )
 
 ALFA = {
-    "id": "1", "nome": "User_Alfa", "genero": "Homem Cis", "busca_por": ["Mulher Cis", "Mulher Trans"],
+    "id": "1",
+    "nome": "User_Alfa",
+    "genero": "Homem Cis",
+    "busca_por": ["Mulher Cis", "Mulher Trans"],
     "tags_interesses": {
         "quero": ["Bondage", "Leather", "Dirty Talk"],
         "curioso": ["Impact Play", "Voyeurism"],
@@ -11,7 +18,10 @@ ALFA = {
     },
 }
 BETA = {
-    "id": "2", "nome": "User_Beta", "genero": "Mulher Cis", "busca_por": ["Homem Cis"],
+    "id": "2",
+    "nome": "User_Beta",
+    "genero": "Mulher Cis",
+    "busca_por": ["Homem Cis"],
     "tags_interesses": {
         "quero": ["Bondage", "Dirty Talk", "Impact Play"],
         "curioso": ["Leather"],

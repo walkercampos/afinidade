@@ -1,4 +1,5 @@
 """Todo o SQL da aplicação. Cada função recebe uma conexão asyncpg."""
+
 from uuid import UUID
 
 import asyncpg
@@ -8,16 +9,22 @@ from .matcher import PerfilMatch
 _CATALOGOS = {"generos", "tags"}
 
 
+def _validar_catalogo(catalogo: str) -> None:
+    # Nome de tabela entra na SQL por f-string: só aceitamos os desta lista fixa.
+    if catalogo not in _CATALOGOS:
+        raise ValueError(f"Catálogo desconhecido: {catalogo}")
+
+
 class SlugDesconhecido(ValueError):
     def __init__(self, catalogo: str, slugs: set[str]):
         super().__init__(f"Valores inexistentes em '{catalogo}': {sorted(slugs)}")
 
 
 async def ids_por_slug(con, catalogo: str, slugs: list[str]) -> dict[str, int]:
-    assert catalogo in _CATALOGOS
+    _validar_catalogo(catalogo)
     filtro_ativa = " AND ativa" if catalogo == "tags" else ""
     linhas = await con.fetch(f"SELECT slug, id FROM {catalogo} WHERE slug = ANY($1::text[]){filtro_ativa}", slugs)
-    mapa = {l["slug"]: l["id"] for l in linhas}
+    mapa = {linha["slug"]: linha["id"] for linha in linhas}
     faltando = set(slugs) - mapa.keys()
     if faltando:
         raise SlugDesconhecido(catalogo, faltando)
@@ -25,13 +32,13 @@ async def ids_por_slug(con, catalogo: str, slugs: list[str]) -> dict[str, int]:
 
 
 async def slugs_por_id(con, catalogo: str, ids) -> dict[int, str]:
-    assert catalogo in _CATALOGOS
+    _validar_catalogo(catalogo)
     linhas = await con.fetch(f"SELECT id, slug FROM {catalogo} WHERE id = ANY($1::int[])", list(set(ids)))
-    return {l["id"]: l["slug"] for l in linhas}
+    return {linha["id"]: linha["slug"] for linha in linhas}
 
 
 async def listar_catalogo(con, catalogo: str):
-    assert catalogo in _CATALOGOS
+    _validar_catalogo(catalogo)
     if catalogo == "tags":
         return await con.fetch("SELECT slug, rotulo, categoria FROM tags WHERE ativa ORDER BY categoria, rotulo")
     return await con.fetch("SELECT slug, rotulo FROM generos ORDER BY id")
@@ -39,12 +46,17 @@ async def listar_catalogo(con, catalogo: str):
 
 def para_perfil_match(linha) -> PerfilMatch:
     return PerfilMatch.criar(
-        linha["conta_id"], linha["genero_id"], linha["busca_por"],
-        linha["tags_quero"], linha["tags_curioso"], linha["tags_limite"],
+        linha["conta_id"],
+        linha["genero_id"],
+        linha["busca_por"],
+        linha["tags_quero"],
+        linha["tags_curioso"],
+        linha["tags_limite"],
     )
 
 
 # ---------- contas ----------
+
 
 async def existe_conta(con, conta_id: UUID) -> bool:
     return await con.fetchval("SELECT EXISTS (SELECT 1 FROM contas WHERE id = $1)", conta_id)
@@ -55,7 +67,8 @@ async def criar_conta(con, handle: str, senha_hash: str) -> UUID | None:
         return await con.fetchval(
             "INSERT INTO contas (handle, senha_hash, adulto_confirmado_em, consentimento_em)"
             " VALUES ($1, $2, now(), now()) RETURNING id",
-            handle, senha_hash,
+            handle,
+            senha_hash,
         )
     except asyncpg.UniqueViolationError:
         return None
@@ -76,8 +89,10 @@ async def excluir_conta(con, conta_id: UUID) -> None:
 
 # ---------- perfis ----------
 
-async def salvar_perfil(con, conta_id: UUID, *, nome_exibicao, bio, genero_id, busca_por,
-                        tags_quero, tags_curioso, tags_limite, visivel) -> None:
+
+async def salvar_perfil(
+    con, conta_id: UUID, *, nome_exibicao, bio, genero_id, busca_por, tags_quero, tags_curioso, tags_limite, visivel
+) -> None:
     await con.execute(
         """
         INSERT INTO perfis (conta_id, nome_exibicao, bio, genero_id, busca_por,
@@ -89,7 +104,15 @@ async def salvar_perfil(con, conta_id: UUID, *, nome_exibicao, bio, genero_id, b
             tags_quero = EXCLUDED.tags_quero, tags_curioso = EXCLUDED.tags_curioso,
             tags_limite = EXCLUDED.tags_limite, visivel = EXCLUDED.visivel, ativo_em = now()
         """,
-        conta_id, nome_exibicao, bio, genero_id, busca_por, tags_quero, tags_curioso, tags_limite, visivel,
+        conta_id,
+        nome_exibicao,
+        bio,
+        genero_id,
+        busca_por,
+        tags_quero,
+        tags_curioso,
+        tags_limite,
+        visivel,
     )
 
 
@@ -115,29 +138,31 @@ async def buscar_perfil_visivel(con, observador: UUID, alvo: UUID):
     return await con.fetchrow(
         f"""SELECT p.* FROM perfis p JOIN contas ct ON ct.id = p.conta_id AND ct.situacao = 'ativa'
             WHERE p.conta_id = $2 AND p.visivel AND {_SEM_BLOQUEIO}""",
-        observador, alvo,
+        observador,
+        alvo,
     )
 
 
 async def salvar_localizacao(con, conta_id: UUID, geohash, lat, lon, distancia_max_km) -> bool:
     status = await con.execute(
         "UPDATE perfis SET geohash = $2, lat_aprox = $3, lon_aprox = $4, distancia_max_km = $5 WHERE conta_id = $1",
-        conta_id, geohash, lat, lon, distancia_max_km,
+        conta_id,
+        geohash,
+        lat,
+        lon,
+        distancia_max_km,
     )
     return status != "UPDATE 0"
 
 
 # ---------- interações ----------
 
+
 async def curtir(con, de: UUID, para: UUID) -> bool:
     """Registra a curtida e diz se ela formou uma conexão (curtida recíproca)."""
     async with con.transaction():
-        await con.execute(
-            "INSERT INTO curtidas (de_id, para_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", de, para
-        )
-        return await con.fetchval(
-            "SELECT EXISTS (SELECT 1 FROM curtidas WHERE de_id = $1 AND para_id = $2)", para, de
-        )
+        await con.execute("INSERT INTO curtidas (de_id, para_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", de, para)
+        return await con.fetchval("SELECT EXISTS (SELECT 1 FROM curtidas WHERE de_id = $1 AND para_id = $2)", para, de)
 
 
 async def bloquear(con, de: UUID, para: UUID) -> None:
@@ -146,8 +171,11 @@ async def bloquear(con, de: UUID, para: UUID) -> None:
         await con.execute(
             "INSERT INTO bloqueios (bloqueador_id, bloqueado_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", de, para
         )
-        for tabela, a, b in (("curtidas", "de_id", "para_id"), ("mensagens", "de_id", "para_id"),
-                             ("acessos_fotos", "dono_id", "visualizador_id")):
+        for tabela, a, b in (
+            ("curtidas", "de_id", "para_id"),
+            ("mensagens", "de_id", "para_id"),
+            ("acessos_fotos", "dono_id", "visualizador_id"),
+        ):
             await con.execute(
                 f"DELETE FROM {tabela} WHERE ({a} = $1 AND {b} = $2) OR ({a} = $2 AND {b} = $1)", de, para
             )
@@ -163,7 +191,8 @@ async def sao_conexao(con, a: UUID, b: UUID) -> bool:
                WHERE x.de_id = $1 AND x.para_id = $2
                  AND NOT EXISTS (SELECT 1 FROM bloqueios b WHERE (b.bloqueador_id = $1 AND b.bloqueado_id = $2)
                                                             OR (b.bloqueador_id = $2 AND b.bloqueado_id = $1)))""",
-        a, b,
+        a,
+        b,
     )
 
 

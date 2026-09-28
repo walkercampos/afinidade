@@ -1,0 +1,35 @@
+[project]
+name = "afinidade"
+version = "0.3.0"
+description = "Rede social adulta (18+) de conexões por afinidade, anônima e de custo zero"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+# E/F/W: erros e estilo básicos · I: ordem dos imports · B: bugs comuns · UP: sintaxe moderna
+# S: segurança (bandit) · SIM: simplificações · ASYNC: armadilhas de código assíncrono
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "ASYNC"]
+ignore = [
+    "S608",  # SQL montado com f-string: só com nomes de uma lista fixa; valores sempre via $n
+    "B008",  # Depends(...) em parâmetros é o padrão do FastAPI
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]  # assert e senhas fixas são normais em teste
+
+[tool.coverage.run]
+source = ["app"]
+
+[tool.coverage.report]
+# O CI falha se a cobertura cair abaixo disso: código novo precisa vir com teste.
+fail_under = 90
+show_missing = true
+skip_covered = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]

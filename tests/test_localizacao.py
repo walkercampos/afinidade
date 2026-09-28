@@ -1,13 +1,13 @@
 from app import geo
 
 SP = (-23.5505, -46.6333)
-SP_PERTO = (-23.5610, -46.6560)       # ~3 km
-CAMPINAS = (-22.9056, -47.0608)       # ~85 km
-RIO = (-22.9068, -43.1729)            # ~360 km
+SP_PERTO = (-23.5610, -46.6560)  # ~3 km
+CAMPINAS = (-22.9056, -47.0608)  # ~85 km
+RIO = (-22.9068, -43.1729)  # ~360 km
 
 
 def test_geohash_e_faixas():
-    assert geo.codificar(57.64911, 10.40744, 11) == "u4pruydqqvj"   # exemplo canônico
+    assert geo.codificar(57.64911, 10.40744, 11) == "u4pruydqqvj"  # exemplo canônico
     assert geo.faixa_km(0.4) == 5 and geo.faixa_km(5.1) == 10 and geo.faixa_km(None) is None
     assert round(geo.distancia_km(*SP, *RIO)) in range(355, 365)
 

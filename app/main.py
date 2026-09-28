@@ -2,6 +2,7 @@
 
 Regras de negócio NÃO moram aqui — veja CONTRIBUTING.md para o mapa das camadas.
 """
+
 import asyncio
 import contextlib
 import logging
@@ -15,7 +16,7 @@ from . import mensagens
 from .config import config
 from .cripto import Cifrador
 from .db import criar_pool, migrar
-from .routes import auth, chat, descoberta, fotos, moderacao, perfil
+from .routes import auth, chat, descoberta, fotos, moderacao, perfil, saude
 
 log = logging.getLogger("matchmaking")
 DIR_STATIC = Path(__file__).resolve().parent.parent / "static"
@@ -82,7 +83,7 @@ def criar_app() -> FastAPI:
         return response
 
     api = APIRouter(prefix="/api")
-    for modulo in (auth, perfil, descoberta, fotos, chat, moderacao):
+    for modulo in (saude, auth, perfil, descoberta, fotos, chat, moderacao):
         api.include_router(modulo.router)
     app.include_router(api)
     # Front-end estático no mesmo domínio: sem CORS, e o cookie SameSite=Strict funciona.

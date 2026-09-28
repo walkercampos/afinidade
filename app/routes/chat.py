@@ -28,16 +28,25 @@ async def conversas(eu: UUID = Depends(conta_atual), con=Depends(conexao)):
     resumo = await mensagens.resumo_conversas(con, eu)
     cat = await Catalogo.para(con, perfis)
     itens = [
-        Conversa(perfil=cat.publico(p), nao_lidas=resumo.get(p["conta_id"], (0, None))[0],
-                 ultima_em=resumo.get(p["conta_id"], (0, None))[1])
+        Conversa(
+            perfil=cat.publico(p),
+            nao_lidas=resumo.get(p["conta_id"], (0, None))[0],
+            ultima_em=resumo.get(p["conta_id"], (0, None))[1],
+        )
         for p in perfis
     ]
     return sorted(itens, key=lambda c: (c.ultima_em is not None, c.ultima_em), reverse=True)
 
 
 @router.get("/conversas/{outro}/mensagens", response_model=list[Mensagem])
-async def ler(outro: UUID, apos: int = Query(0, ge=0), limite: int = Query(50, ge=1, le=100),
-              eu: UUID = Depends(conta_atual), con=Depends(conexao), cif=Depends(cifrador)):
+async def ler(
+    outro: UUID,
+    apos: int = Query(0, ge=0),
+    limite: int = Query(50, ge=1, le=100),
+    eu: UUID = Depends(conta_atual),
+    con=Depends(conexao),
+    cif=Depends(cifrador),
+):
     """Mensagens a partir do id `apos` (use o último id recebido para buscar só as novas).
 
     Ler marca as mensagens recebidas como lidas: elas somem para os dois lados em
@@ -48,8 +57,9 @@ async def ler(outro: UUID, apos: int = Query(0, ge=0), limite: int = Query(50, g
 
 
 @router.post("/conversas/{outro}/mensagens", response_model=Mensagem, status_code=status.HTTP_201_CREATED)
-async def enviar(outro: UUID, dados: NovaMensagem, eu: UUID = Depends(conta_ativa),
-                 con=Depends(conexao), cif=Depends(cifrador)):
+async def enviar(
+    outro: UUID, dados: NovaMensagem, eu: UUID = Depends(conta_ativa), con=Depends(conexao), cif=Depends(cifrador)
+):
     exigir_limite("mensagem", config().limite_mensagens_por_min, str(eu), anonimizar=False)
     await _exigir_conexao(con, eu, outro)
     return await mensagens.enviar(con, cif, eu, outro, dados.texto)

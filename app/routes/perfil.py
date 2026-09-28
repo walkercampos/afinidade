@@ -16,12 +16,12 @@ router = APIRouter(tags=["perfil"])
 
 @router.get("/catalogo/generos", response_model=list[ItemCatalogo])
 async def catalogo_generos(con=Depends(conexao)):
-    return [dict(l) for l in await repo.listar_catalogo(con, "generos")]
+    return [dict(linha) for linha in await repo.listar_catalogo(con, "generos")]
 
 
 @router.get("/catalogo/tags", response_model=list[ItemCatalogo])
 async def catalogo_tags(con=Depends(conexao)):
-    return [dict(l) for l in await repo.listar_catalogo(con, "tags")]
+    return [dict(linha) for linha in await repo.listar_catalogo(con, "tags")]
 
 
 @router.put("/perfil", response_model=PerfilProprio)
@@ -31,11 +31,17 @@ async def salvar_perfil(dados: PerfilEntrada, eu: UUID = Depends(conta_atual), c
         generos = await repo.ids_por_slug(con, "generos", [dados.genero, *dados.busca_por])
         tags = await repo.ids_por_slug(con, "tags", [*t.quero, *t.curioso, *t.limite_absoluto])
     except repo.SlugDesconhecido as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e))
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
     await repo.salvar_perfil(
-        con, eu, nome_exibicao=dados.nome_exibicao, bio=dados.bio, visivel=dados.visivel,
-        genero_id=generos[dados.genero], busca_por=sorted({generos[g] for g in dados.busca_por}),
-        tags_quero=[tags[s] for s in t.quero], tags_curioso=[tags[s] for s in t.curioso],
+        con,
+        eu,
+        nome_exibicao=dados.nome_exibicao,
+        bio=dados.bio,
+        visivel=dados.visivel,
+        genero_id=generos[dados.genero],
+        busca_por=sorted({generos[g] for g in dados.busca_por}),
+        tags_quero=[tags[s] for s in t.quero],
+        tags_curioso=[tags[s] for s in t.curioso],
         tags_limite=[tags[s] for s in t.limite_absoluto],
     )
     return await ler_perfil(eu, con)
@@ -48,10 +54,15 @@ async def ler_perfil(eu: UUID = Depends(conta_atual), con=Depends(conexao)):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Perfil ainda não criado")
     cat = await Catalogo.para(con, [p])
     return PerfilProprio(
-        id=eu, nome_exibicao=p["nome_exibicao"], bio=p["bio"], visivel=p["visivel"],
-        genero=cat.generos[p["genero_id"]], busca_por=sorted(cat.generos[g] for g in p["busca_por"]),
+        id=eu,
+        nome_exibicao=p["nome_exibicao"],
+        bio=p["bio"],
+        visivel=p["visivel"],
+        genero=cat.generos[p["genero_id"]],
+        busca_por=sorted(cat.generos[g] for g in p["busca_por"]),
         tags_interesses=TagsInteresses(
-            quero=cat.tags_de(p["tags_quero"]), curioso=cat.tags_de(p["tags_curioso"]),
+            quero=cat.tags_de(p["tags_quero"]),
+            curioso=cat.tags_de(p["tags_curioso"]),
             limite_absoluto=cat.tags_de(p["tags_limite"]),
         ),
         localizacao=LocalizacaoSalva(regiao=p["geohash"], distancia_max_km=p["distancia_max_km"]),

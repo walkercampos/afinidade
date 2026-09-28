@@ -7,6 +7,7 @@ As fórmulas aqui espelham `matcher.calcular_match`, `matcher.score_mutuo` e
 `matcher.similaridade` exatamente (inclusive arredondamento); `tests/test_paridade.py`
 compara os dois lados em perfis aleatórios.
 """
+
 import base64
 import json
 from datetime import datetime
@@ -53,12 +54,20 @@ class _Params:
         return f"${len(self.valores)}::{tipo}"
 
 
-def _consulta(eu, *, alvo: UUID | None = None, ordem: str = "compatibilidade", limite: int = 20,
-              cursor: tuple | None = None, inatividade_dias: int | None = None,
-              excluir_curtidos: bool = True) -> tuple[str, list]:
+def _consulta(
+    eu,
+    *,
+    alvo: UUID | None = None,
+    ordem: str = "compatibilidade",
+    limite: int = 20,
+    cursor: tuple | None = None,
+    inatividade_dias: int | None = None,
+    excluir_curtidos: bool = True,
+) -> tuple[str, list]:
     p = _Params()
     eu_id = p(eu["conta_id"], "uuid")
-    quero, curioso, limites = p(eu["tags_quero"], "int[]"), p(eu["tags_curioso"], "int[]"), p(eu["tags_limite"], "int[]")
+    quero, curioso = p(eu["tags_quero"], "int[]"), p(eu["tags_curioso"], "int[]")
+    limites = p(eu["tags_limite"], "int[]")
     lat, lon = p(eu["lat_aprox"], "float8"), p(eu["lon_aprox"], "float8")
     dist_max = p(eu["distancia_max_km"], "int")
 
@@ -93,8 +102,10 @@ def _consulta(eu, *, alvo: UUID | None = None, ordem: str = "compatibilidade", l
     filtro_cursor = "true"
     if cursor is not None:
         c1, c2, c_ativo, c_id = cursor
-        filtro_cursor = (f"({k1}, {k2}, n.ativo_em, n.conta_id) < "
-                         f"({p(c1, 'int')}, {p(c2, 'int')}, {p(c_ativo, 'timestamptz')}, {p(c_id, 'uuid')})")
+        filtro_cursor = (
+            f"({k1}, {k2}, n.ativo_em, n.conta_id) < "
+            f"({p(c1, 'int')}, {p(c2, 'int')}, {p(c_ativo, 'timestamptz')}, {p(c_id, 'uuid')})"
+        )
 
     sql = f"""
     WITH base AS (
@@ -113,11 +124,14 @@ def _consulta(eu, *, alvo: UUID | None = None, ordem: str = "compatibilidade", l
                     THEN distancia_km({lat}, {lon}, p.lat_aprox, p.lon_aprox) END AS distancia
         FROM perfis p
         JOIN contas ct ON ct.id = p.conta_id
-        WHERE {' AND '.join(filtros)}
+        WHERE {" AND ".join(filtros)}
     ), notas AS (
         SELECT base.*,
-               CASE WHEN max_eu = 0 THEN 0 ELSE LEAST(100, (pontos * 200 + max_eu) / (2 * max_eu)) END AS score_eu,
-               CASE WHEN max_outro = 0 THEN 0 ELSE LEAST(100, (pontos * 200 + max_outro) / (2 * max_outro)) END AS score_outro,
+               -- porcentagem com arredondamento "meio para cima" em inteiros (= matcher._porcentagem)
+               CASE WHEN max_eu = 0 THEN 0
+                    ELSE LEAST(100, (pontos * 200 + max_eu) / (2 * max_eu)) END AS score_eu,
+               CASE WHEN max_outro = 0 THEN 0
+                    ELSE LEAST(100, (pontos * 200 + max_outro) / (2 * max_outro)) END AS score_outro,
                CASE WHEN produto = 0 THEN 0
                     ELSE floor(100 * produto / sqrt(norma_eu::float8 * norma_outro) + 0.5)::int END AS similaridade
         FROM base
@@ -129,7 +143,7 @@ def _consulta(eu, *, alvo: UUID | None = None, ordem: str = "compatibilidade", l
     SELECT * FROM final n
     WHERE {filtro_cursor}
     ORDER BY {k1} DESC, {k2} DESC, n.ativo_em DESC, n.conta_id DESC
-    LIMIT {p(limite, 'int')}
+    LIMIT {p(limite, "int")}
     """
     return sql, p.valores
 

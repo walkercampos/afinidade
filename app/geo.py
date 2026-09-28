@@ -1,4 +1,5 @@
 """Geohash mínimo (sem dependências) e faixas de distância."""
+
 import math
 
 _BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz"
@@ -53,5 +54,6 @@ def faixa_km(distancia: float | None) -> int | None:
 def distancia_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Haversine, igual à função SQL distancia_km (migração 0003)."""
     p1, p2 = math.radians(lat1), math.radians(lat2)
-    a = math.sin(math.radians(lat2 - lat1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lon2 - lon1) / 2) ** 2
+    dlat, dlon = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlon / 2) ** 2
     return 2 * 6371.0088 * math.asin(math.sqrt(a))

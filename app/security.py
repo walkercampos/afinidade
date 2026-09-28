@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import jwt
@@ -44,15 +44,20 @@ def verificar_senha(senha: str, armazenado: str) -> bool:
 
 
 def emitir_token(conta_id: UUID, versao: int, segredo: str, expira_min: int) -> str:
-    agora = datetime.now(timezone.utc)
+    agora = datetime.now(UTC)
     payload = {"sub": str(conta_id), "ver": versao, "iat": agora, "exp": agora + timedelta(minutes=expira_min)}
     return jwt.encode(payload, segredo, algorithm="HS256")
 
 
 def gravar_cookie_sessao(response: Response, token: str, config) -> None:
     response.set_cookie(
-        COOKIE_SESSAO, token, max_age=config.jwt_expira_min * 60, path="/api",
-        httponly=True, secure=config.producao, samesite="strict",
+        COOKIE_SESSAO,
+        token,
+        max_age=config.jwt_expira_min * 60,
+        path="/api",
+        httponly=True,
+        secure=config.producao,
+        samesite="strict",
     )
 
 
@@ -63,8 +68,8 @@ def apagar_cookie_sessao(response: Response, config) -> None:
 @dataclass(frozen=True)
 class Sessao:
     conta_id: UUID
-    papel: str      # 'usuario' | 'moderador'
-    situacao: str   # 'ativa' | 'em_revisao' (banida nunca chega aqui)
+    papel: str  # 'usuario' | 'moderador'
+    situacao: str  # 'ativa' | 'em_revisao' (banida nunca chega aqui)
 
 
 _bearer = HTTPBearer(auto_error=False)
@@ -87,7 +92,7 @@ async def sessao_atual(request: Request, cred: HTTPAuthorizationCredentials | No
         payload = jwt.decode(token, cfg.jwt_secret, algorithms=["HS256"], options={"require": ["exp", "sub", "ver"]})
         conta_id = UUID(payload["sub"])
     except (jwt.PyJWTError, ValueError):
-        raise nao_autorizado
+        raise nao_autorizado from None
 
     # A versão do token permite "sair de todos os dispositivos" e invalida na hora tokens de
     # contas excluídas ou banidas, em vez de esperar a expiração.

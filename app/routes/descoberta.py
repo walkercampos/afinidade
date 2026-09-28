@@ -20,9 +20,13 @@ HEADER_CURSOR = "X-Proximo-Cursor"
 def _compatibilidade(eu: PerfilMatch, outro: PerfilMatch, cat: Catalogo, distancia: float | None) -> Compatibilidade:
     r = calcular_match(eu, outro)
     return Compatibilidade(
-        match_valido=r.match_valido, score_porcentagem=r.score_porcentagem, score_mutuo=score_mutuo(eu, outro),
-        similaridade=similaridade(eu, outro), tags_em_comum=cat.tags_de(r.tags_em_comum),
-        tags_mesmo_nivel=cat.tags_de(tags_mesmo_nivel(eu, outro)), distancia_km=geo.faixa_km(distancia),
+        match_valido=r.match_valido,
+        score_porcentagem=r.score_porcentagem,
+        score_mutuo=score_mutuo(eu, outro),
+        similaridade=similaridade(eu, outro),
+        tags_em_comum=cat.tags_de(r.tags_em_comum),
+        tags_mesmo_nivel=cat.tags_de(tags_mesmo_nivel(eu, outro)),
+        distancia_km=geo.faixa_km(distancia),
         motivo=r.motivo,
     )
 
@@ -49,7 +53,7 @@ async def _listar(con, eu: UUID, ordem: str, limite: int, cursor: str | None, re
     try:
         posicao = descoberta.decodificar_cursor(cursor) if cursor else None
     except descoberta.CursorInvalido as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
     linhas = await descoberta.buscar_candidatos(
         con, meu, ordem=ordem, limite=limite, cursor=posicao, inatividade_dias=config().inatividade_max_dias
     )
@@ -57,22 +61,27 @@ async def _listar(con, eu: UUID, ordem: str, limite: int, cursor: str | None, re
         response.headers[HEADER_CURSOR] = descoberta.codificar_cursor(linhas[-1], ordem)
 
     cat = await Catalogo.para(con, linhas)
-    fotos_de = await fotos_por_conta(con, eu, [l["conta_id"] for l in linhas])
+    fotos_de = await fotos_por_conta(con, eu, [linha["conta_id"] for linha in linhas])
     eu_match = repo.para_perfil_match(meu)
     return [
         Candidato(
-            perfil=cat.publico(l),
-            compatibilidade=_compatibilidade(eu_match, repo.para_perfil_match(l), cat, l["distancia"]),
-            fotos=fotos_de[l["conta_id"]],
+            perfil=cat.publico(linha),
+            compatibilidade=_compatibilidade(eu_match, repo.para_perfil_match(linha), cat, linha["distancia"]),
+            fotos=fotos_de[linha["conta_id"]],
         )
-        for l in linhas
+        for linha in linhas
     ]
 
 
 @router.get("/descobrir", response_model=list[Candidato])
-async def descobrir(response: Response, ordem: Ordem = "compatibilidade", limite: int = Query(20, ge=1, le=100),
-                    cursor: str | None = Query(None, max_length=300),
-                    eu: UUID = Depends(conta_atual), con=Depends(conexao)):
+async def descobrir(
+    response: Response,
+    ordem: Ordem = "compatibilidade",
+    limite: int = Query(20, ge=1, le=100),
+    cursor: str | None = Query(None, max_length=300),
+    eu: UUID = Depends(conta_atual),
+    con=Depends(conexao),
+):
     """Perfis compatíveis (gênero mútuo, sem conflito de limites, dentro da distância).
 
     `ordem`: compatibilidade (padrão), afinidade (gostos parecidos) ou recentes.
@@ -83,9 +92,13 @@ async def descobrir(response: Response, ordem: Ordem = "compatibilidade", limite
 
 
 @router.get("/afins", response_model=list[Candidato])
-async def afins(response: Response, limite: int = Query(20, ge=1, le=100),
-                cursor: str | None = Query(None, max_length=300),
-                eu: UUID = Depends(conta_atual), con=Depends(conexao)):
+async def afins(
+    response: Response,
+    limite: int = Query(20, ge=1, le=100),
+    cursor: str | None = Query(None, max_length=300),
+    eu: UUID = Depends(conta_atual),
+    con=Depends(conexao),
+):
     """Pessoas com as mesmas preferências que você (atalho para /descobrir?ordem=afinidade)."""
     return await _listar(con, eu, "afinidade", limite, cursor, response)
 
@@ -132,7 +145,7 @@ async def bloquear(alvo: UUID, eu: UUID = Depends(conta_atual), con=Depends(cone
 async def conexoes(eu: UUID = Depends(conta_atual), con=Depends(conexao)):
     linhas = await repo.listar_conexoes(con, eu)
     cat = await Catalogo.para(con, linhas)
-    return [cat.publico(l) for l in linhas]
+    return [cat.publico(linha) for linha in linhas]
 
 
 @router.post("/match/simular")

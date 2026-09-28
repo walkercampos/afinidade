@@ -33,6 +33,7 @@ def test_some_cinco_minutos_depois_de_lida(conexao_entre, db):
     assert b.get(f"/api/conversas/{a.id}/mensagens").json() == []
     # ... e a limpeza periódica remove do banco
     from app import mensagens
+
     db.execute("SELECT 1")  # conexão viva
     import asyncio
 
@@ -65,14 +66,13 @@ def test_bloqueio_apaga_a_conversa(conexao_entre, db):
     a, b = conexao_entre()
     a.post(f"/api/conversas/{b.id}/mensagens", json={"texto": "oi"})
     b.post(f"/api/perfis/{a.id}/bloquear")
-    assert db.fetchval(
-        "SELECT count(*) FROM mensagens WHERE de_id = ANY($1::uuid[])", [a.id, b.id]
-    ) == 0
+    assert db.fetchval("SELECT count(*) FROM mensagens WHERE de_id = ANY($1::uuid[])", [a.id, b.id]) == 0
     assert a.post(f"/api/conversas/{b.id}/mensagens", json={"texto": "?"}).status_code == 404
 
 
 def test_denuncia_leva_evidencias_cifradas(conexao_entre, db, pessoa):
     from app import admin
+
     a, b = conexao_entre()
     b.post(f"/api/conversas/{a.id}/mensagens", json={"texto": "mensagem abusiva"})
     a.post(f"/api/perfis/{b.id}/denunciar", json={"motivo": "assedio", "incluir_mensagens": True})
