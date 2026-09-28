@@ -8,13 +8,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 
+from .. import contato
 from .. import repository as repo
 from .. import verificacao as verif
 from ..config import config
 from ..db import conexao
 from ..email import FalhaNoEnvio, mensagem_de_acesso
 from ..ratelimit import exigir_limite, ip_do_cliente
-from ..schemas import Cadastro, ConfirmarCodigo, ConfirmarLink, PedidoEntrar, Token, VerificacaoEnviada
+from ..schemas import Cadastro, ConfirmarCodigo, ConfirmarLink, MinhaConta, PedidoEntrar, Token, VerificacaoEnviada
 from ..security import apagar_cookie_sessao, conta_atual, iniciar_sessao
 
 router = APIRouter(tags=["autenticação"])
@@ -33,8 +34,9 @@ async def _entregar(carteiro, mensagem) -> None:
 async def _enviar_codigo(
     request: Request, tarefas: BackgroundTasks, con, email: str, email_hash: bytes, *, conta_id=None, dados=None
 ) -> UUID:
+    email_cifrado = contato.cifrar_email(request.app.state.cifrador_email, email, email_hash)
     verificacao_id, codigo, token = await verif.criar(
-        con, config().email_pepper, email_hash, conta_id=conta_id, dados=dados
+        con, config().email_pepper, email_hash, email_cifrado, conta_id=conta_id, dados=dados
     )
     # O token vai no fragmento (#): navegadores não o enviam a servidores nem em Referer.
     link = f"{config().email.app_url}/#/verificar/{token}"
@@ -87,11 +89,17 @@ async def _concluir(con, response: Response, linha) -> dict:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Conta não encontrada")
         if conta["situacao"] == "banida":
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Conta banida por violar as regras da comunidade")
+        # Contas criadas antes da migração 0009 ganham o e-mail cifrado no primeiro acesso por e-mail.
+        await con.execute(
+            "UPDATE contas SET email_cifrado = $2 WHERE id = $1 AND email_cifrado IS NULL",
+            conta["id"],
+            linha["email_cifrado"],
+        )
         return iniciar_sessao(response, conta["id"], conta["token_versao"], conta["handle"])
 
     pendente = json.loads(linha["dados"])
     try:
-        criada = await repo.criar_conta_anonima(con, pendente["handle"], linha["email_hash"])
+        criada = await repo.criar_conta_anonima(con, pendente["handle"], linha["email_hash"], linha["email_cifrado"])
     except repo.EmailJaCadastrado:
         # Outra verificação do mesmo e-mail criou a conta antes: quem tem o código entra nela.
         conta = await repo.buscar_conta_por_email(con, linha["email_hash"])
@@ -127,6 +135,14 @@ async def sair(response: Response, eu: UUID = Depends(conta_atual), con=Depends(
     """Encerra a sessão em todos os dispositivos (também usado pelo botão de pânico)."""
     await repo.invalidar_sessoes(con, eu)
     apagar_cookie_sessao(response, config())
+
+
+@router.get("/conta", response_model=MinhaConta)
+async def minha_conta(request: Request, eu: UUID = Depends(conta_atual), con=Depends(conexao)):
+    """Dados da própria conta. O e-mail vem mascarado: basta para a pessoa reconhecê-lo."""
+    conta = await repo.buscar_conta(con, eu)
+    email = await contato.email_da_conta(con, request.app.state.cifrador_email, eu)
+    return MinhaConta(handle=conta["handle"], email=contato.mascarar(email) if email else None)
 
 
 @router.delete("/conta", status_code=status.HTTP_204_NO_CONTENT)

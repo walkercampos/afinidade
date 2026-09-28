@@ -10,21 +10,44 @@ def caixa(client):
     return client.app.state.carteiro.caixa
 
 
-def test_email_nunca_fica_gravado_em_texto(client, db):
-    email = "Privada.Pessoa@Exemplo.com"
-    r = criar_conta(client, email, "email_privado")
+def test_email_fica_cifrado_e_so_abre_com_a_chave(client, db):
+    from app import contato
+    from app.config import config
+
+    r = criar_conta(client, "Privada.Pessoa@Exemplo.com", "email_privado")
     assert r.status_code == 200
     conta = db.fetchrow("SELECT * FROM contas WHERE handle = 'email_privado'")
     assert len(conta["email_hash"]) == 32
+    # nada do endereço aparece em texto no banco, em nenhuma coluna
+    assert b"exemplo" not in bytes(conta["email_cifrado"]).lower()
     assert "exemplo" not in repr(dict(conta)).lower()
-    colunas = db.fetch(
-        "SELECT table_name, column_name FROM information_schema.columns "
-        "WHERE table_schema = 'public' AND column_name ILIKE '%email%'"
-    )
-    assert {(c["table_name"], c["column_name"]) for c in colunas} == {
-        ("contas", "email_hash"),
-        ("verificacoes_email", "email_hash"),
+    # abre com a chave certa e o hash da própria conta; não abre com outra chave nem em outra conta
+    cif = contato.criar_cifrador(config().chave_email)
+    assert contato.decifrar_email(cif, conta["email_cifrado"], conta["email_hash"]) == "privada.pessoa@exemplo.com"
+    import pytest
+
+    with pytest.raises(ValueError):
+        contato.decifrar_email(contato.criar_cifrador("outra" * 8), conta["email_cifrado"], conta["email_hash"])
+    with pytest.raises(ValueError):
+        contato.decifrar_email(cif, conta["email_cifrado"], b"x" * 32)
+    # a verificação já usada foi apagada: nenhuma cópia do e-mail sobra nela
+    assert db.fetchval("SELECT count(*) FROM verificacoes_email WHERE email_hash = $1", conta["email_hash"]) == 0
+
+
+def test_conta_mostra_so_o_email_mascarado(client):
+    r = criar_conta(client, "joana.teste@exemplo.com", "mascara_1")
+    assert client.get("/api/conta", headers=bearer(r)).json() == {
+        "handle": "mascara_1",
+        "email": "j****@exemplo.com",
     }
+
+
+def test_contas_antigas_ganham_o_email_cifrado_no_proximo_acesso(client, pessoa, db):
+    p = pessoa()
+    db.execute("UPDATE contas SET email_cifrado = NULL WHERE id = $1::uuid", p.id)
+    assert p.get("/api/conta").json()["email"] is None
+    entrar_por_email(client, p.email)
+    assert p.get("/api/conta").json()["email"] is not None
 
 
 def test_resposta_igual_com_ou_sem_conta(client, pessoa):

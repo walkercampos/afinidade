@@ -1,7 +1,7 @@
 """Verificação de e-mail com código de 6 dígitos ou link de uso único (sem senha).
 
-O e-mail nunca é gravado em texto: guardamos HMAC-SHA256(EMAIL_PEPPER, e-mail normalizado).
-Código e token também só existem no banco como hash.
+O e-mail nunca é gravado em texto: para achar a conta usamos HMAC-SHA256(EMAIL_PEPPER, e-mail);
+para poder falar com a pessoa, o e-mail vai cifrado (ver contato.py). Código e token só em hash.
 """
 
 import hashlib
@@ -42,7 +42,9 @@ def _hash_token(token: str) -> bytes:
     return hashlib.sha256(b"token|" + token.encode()).digest()
 
 
-async def criar(con, pepper: str, email_hash: bytes, *, conta_id: UUID | None, dados: dict | None):
+async def criar(
+    con, pepper: str, email_hash: bytes, email_cifrado: bytes, *, conta_id: UUID | None, dados: dict | None
+):
     """Cria a verificação e devolve (id, código, token) em claro, só para ir no e-mail."""
     verificacao_id = await con.fetchval("SELECT gen_random_uuid()")
     codigo = f"{secrets.randbelow(1_000_000):06d}"
@@ -50,10 +52,12 @@ async def criar(con, pepper: str, email_hash: bytes, *, conta_id: UUID | None, d
     # Um pedido novo invalida os anteriores do mesmo e-mail (só o último código vale).
     await con.execute("DELETE FROM verificacoes_email WHERE email_hash = $1", email_hash)
     await con.execute(
-        """INSERT INTO verificacoes_email (id, email_hash, conta_id, dados, codigo_hash, token_hash, expira_em)
-           VALUES ($1, $2, $3, $4::jsonb, $5, $6, now() + $7::interval)""",
+        """INSERT INTO verificacoes_email
+               (id, email_hash, email_cifrado, conta_id, dados, codigo_hash, token_hash, expira_em)
+           VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, now() + $8::interval)""",
         verificacao_id,
         email_hash,
+        email_cifrado,
         conta_id,
         json.dumps(dados) if dados is not None else None,
         _hash_codigo(pepper, verificacao_id, codigo),

@@ -39,6 +39,7 @@ def client():
             "WEBAUTHN_RP_ID": "testserver",
             "WEBAUTHN_ORIGENS": "http://testserver",
             "EMAIL_PEPPER": "p" * 32,
+            "CHAVE_EMAIL": "e" * 32,
             "EMAIL_PROVEDOR": "memoria",  # os e-mails ficam em app.state.carteiro.caixa
             "LIMITE_API_POR_MIN": "100000",
         }

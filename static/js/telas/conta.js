@@ -32,8 +32,15 @@ async function secaoPasskeys() {
 }
 
 export async function telaConta(_parametro, ctx) {
-  const passkeys = await secaoPasskeys();
-  ctx.mostrar(h("h1", {}, "Conta"), passkeys,
+  const [conta, passkeys] = await Promise.all([api("/conta"), secaoPasskeys()]);
+  ctx.mostrar(h("h1", {}, "Conta"),
+    h("section", { class: "cartao" },
+      h("h2", {}, "Acesso"),
+      h("p", {}, `@${conta.handle}`),
+      h("p", { class: "nota" }, conta.email
+        ? `E-mail de acesso: ${conta.email}. Guardado criptografado; usado só para códigos de acesso e avisos sobre a conta.`
+        : "Entre uma vez com um código por e-mail para registrar o e-mail de acesso.")),
+    passkeys,
     h("div", { class: "cartao" },
       h("h2", {}, "Saída rápida"),
       h("p", { class: "nota" }, "Aperte ESC ou o botão vermelho a qualquer momento: a tela some, a sessão é encerrada e você vai para o Google."),

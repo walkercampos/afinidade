@@ -9,7 +9,7 @@ de privacidade do app.
 Requisitos: Python 3.11+, Docker (só para o PostgreSQL) e `make`.
 
 ```bash
-cp .env.example .env          # gere JWT_SECRET, CHAVE_MENSAGENS e EMAIL_PEPPER com o comando do arquivo
+cp .env.example .env          # gere JWT_SECRET, CHAVE_MENSAGENS, EMAIL_PEPPER e CHAVE_EMAIL com o comando do arquivo
 make instalar                 # dependências de desenvolvimento + hooks de pre-commit
 make db                       # sobe o PostgreSQL local (cria também o banco de testes)
 make rodar                    # http://localhost:8000 · API em /docs · códigos de acesso em emails-dev/
@@ -36,7 +36,7 @@ app/
 ├── mensagens.py     chat efêmero        ├── fotos.py      fotos protegidas
 ├── moderacao.py     denúncias e revisão ├── geo.py        geohash e distâncias
 ├── cripto.py        AES-GCM para dados em repouso
-├── verificacao.py   código/link por e-mail (e-mail só como HMAC)  ├── email.py   carteiros (arquivo, Resend, SMTP)
+├── verificacao.py   código/link por e-mail (HMAC)  ├── contato.py  e-mail cifrado e avisos  ├── email.py   carteiros (arquivo, Resend, SMTP)
 ├── passkeys.py      biometria (WebAuthn)
 ├── ratelimit.py     limite de requisições sem guardar IPs
 └── admin.py         linha de comando (promover moderador, migrar)
@@ -66,7 +66,7 @@ Exemplo: "favoritar perfis".
 
 ### Checklist de privacidade (vale para todo PR)
 
-- [ ] Não grava nada que identifique a pessoa fora do app (telefone, IP, coordenada exata, EXIF). E-mail **só** via `verificacao.hash_email`, nunca em texto, nem em log.
+- [ ] Não grava nada que identifique a pessoa fora do app (telefone, IP, coordenada exata, EXIF). E-mail **só** via `verificacao.hash_email` / `contato.cifrar_email`, nunca em texto, nem em log, nem em resposta da API.
 - [ ] Respeita bloqueios nas duas direções e esconde contas `em_revisao`/`banida` (use `exigir_perfil_visivel`).
 - [ ] Ações que alcançam outra pessoa usam `conta_ativa` (e não só `conta_atual`).
 - [ ] Conteúdo privado (mensagens, fotos, evidências) é cifrado com `Cifrador` e um contexto próprio.

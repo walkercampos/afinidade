@@ -23,6 +23,9 @@ services:
       # (quem tem conta deixaria de ser encontrado pelo e-mail).
       - key: EMAIL_PEPPER
         generateValue: true
+      # Cifra o e-mail das pessoas (para o app poder mandar avisos). NÃO troque depois.
+      - key: CHAVE_EMAIL
+        generateValue: true
       - key: EMAIL_PROVEDOR
         value: resend
       # Chave da API do Resend (resend.com → API Keys) e o remetente de um domínio verificado lá.

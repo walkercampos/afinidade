@@ -22,8 +22,9 @@ class Config:
     # Passkeys: o domínio (sem esquema nem porta) e as origens exatas de onde o app é servido.
     webauthn_rp_id: str
     webauthn_origens: tuple[str, ...]
-    # E-mail: chave do HMAC (o e-mail nunca é gravado em texto) e como os e-mails saem.
+    # E-mail: chave do HMAC (busca), chave da cifragem (para poder enviar avisos) e o envio.
     email_pepper: str
+    chave_email: str
     email: "ConfigEmail"
 
 
@@ -111,5 +112,6 @@ def config() -> Config:
         webauthn_rp_id=rp_id,
         webauthn_origens=origens,
         email_pepper=_segredo("EMAIL_PEPPER"),
+        chave_email=_segredo("CHAVE_EMAIL"),
         email=_email(producao, origens),
     )

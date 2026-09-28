@@ -63,9 +63,9 @@ function formCriar(area) {
   }),
   ...campoEmail(),
   h("p", { class: "nota" },
-    "Seu e-mail nunca aparece para ninguém e fica guardado embaralhado: nem nós conseguimos lê-lo. "
-    + "Serve só para confirmar a conta e recuperar o acesso. Para mais discrição, use um e-mail só para isso "
-    + "ou um alias (Ocultar meu e-mail do iCloud, Firefox Relay)."),
+    "Seu e-mail nunca aparece para ninguém e fica guardado criptografado. Ele é usado só para confirmar a conta, "
+    + "recuperar o acesso e avisos importantes sobre ela (nunca propaganda). Para mais discrição, use um e-mail só "
+    + "para isso ou um alias (Ocultar meu e-mail do iCloud, Firefox Relay)."),
   h("label", { for: "handle" }, "Apelido (opcional)"),
   h("input", { id: "handle", name: "handle", type: "text", autocomplete: "nickname", autocapitalize: "none",
     spellcheck: "false", pattern: "[a-zA-Z0-9_]{3,30}", maxlength: 30 }),

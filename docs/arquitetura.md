@@ -38,7 +38,7 @@ Ordens disponíveis em `/api/descobrir?ordem=`: `compatibilidade` (padrão), `af
 
 | Tabela | Conteúdo |
 |---|---|
-| `contas` | apelido, **HMAC do e-mail** (nunca o e-mail), `webauthn_id` aleatório, quando confirmou 18+ e o consentimento, `papel`, `situacao`, `token_versao` |
+| `contas` | apelido, **HMAC do e-mail** (busca) e **e-mail cifrado** (avisos), `webauthn_id` aleatório, quando confirmou 18+ e o consentimento, `papel`, `situacao`, `token_versao` |
 | `verificacoes_email` | códigos e links de uso único (só em hash), 15 min, contador de tentativas |
 | `passkeys`, `desafios_webauthn` | chaves **públicas** das passkeys e desafios de uso único (5 min); ver [autenticacao.md](autenticacao.md) |
 | `perfis` | nome de exibição, bio, gênero, `busca_por[]`, `tags_quero[]`, `tags_curioso[]`, `tags_limite[]`, célula geohash |
@@ -55,7 +55,7 @@ Tudo que pertence a uma conta tem `ON DELETE CASCADE`: excluir a conta apaga tud
 
 | Dado | O que acontece |
 |---|---|
-| E-mail | só como HMAC-SHA256 com chave fora do banco; o código é enviado para o endereço digitado |
+| E-mail | HMAC-SHA256 para busca + AES-256-GCM para avisos (chaves próprias, fora do banco); aberto só na hora de enviar; contatos registrados em `contatos_log` |
 | Data de nascimento | verificada no cadastro e descartada |
 | Coordenadas | viram uma célula de ~5 km; a posição exata nunca é gravada |
 | IP | não é registrado; o rate limit usa HMAC com chave em memória trocada a cada hora |

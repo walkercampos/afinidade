@@ -67,14 +67,15 @@ class EmailJaCadastrado(Exception):
     pass
 
 
-async def criar_conta(con, handle: str, email_hash: bytes) -> UUID | None:
+async def criar_conta(con, handle: str, email_hash: bytes, email_cifrado: bytes | None = None) -> UUID | None:
     """None se o apelido já existe; EmailJaCadastrado se o e-mail já tem conta."""
     try:
         return await con.fetchval(
-            "INSERT INTO contas (handle, email_hash, adulto_confirmado_em, consentimento_em)"
-            " VALUES ($1, $2, now(), now()) RETURNING id",
+            "INSERT INTO contas (handle, email_hash, email_cifrado, adulto_confirmado_em, consentimento_em)"
+            " VALUES ($1, $2, $3, now(), now()) RETURNING id",
             handle,
             email_hash,
+            email_cifrado,
         )
     except asyncpg.UniqueViolationError as e:
         if e.constraint_name == "contas_email_hash_key":
@@ -89,18 +90,20 @@ def handle_aleatorio() -> str:
     return "anon_" + "".join(secrets.choice(_ALFABETO_HANDLE) for _ in range(8))
 
 
-async def criar_conta_anonima(con, handle: str | None, email_hash: bytes) -> tuple[UUID, str] | None:
+async def criar_conta_anonima(
+    con, handle: str | None, email_hash: bytes, email_cifrado: bytes | None = None
+) -> tuple[UUID, str] | None:
     """Cria a conta com o apelido escolhido ou, sem ele, com um aleatório.
 
     None só quando o apelido ESCOLHIDO já está em uso (32^8 combinações tornam colisão
     do aleatório raríssima; mesmo assim tentamos algumas vezes).
     """
     if handle:
-        conta_id = await criar_conta(con, handle, email_hash)
+        conta_id = await criar_conta(con, handle, email_hash, email_cifrado)
         return (conta_id, handle) if conta_id else None
     for _ in range(5):
         handle = handle_aleatorio()
-        if (conta_id := await criar_conta(con, handle, email_hash)) is not None:
+        if (conta_id := await criar_conta(con, handle, email_hash, email_cifrado)) is not None:
             return conta_id, handle
     raise RuntimeError("Não foi possível gerar um apelido livre")
 

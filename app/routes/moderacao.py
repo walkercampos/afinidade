@@ -1,15 +1,15 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from .. import moderacao
+from .. import contato, moderacao
 from .. import repository as repo
 from ..catalogo import Catalogo
 from ..config import config
 from ..db import conexao
 from ..deps import cifrador
 from ..ratelimit import exigir_limite
-from ..schemas import ContaNaFila, Decisao, Denuncia
+from ..schemas import Aviso, ContaNaFila, Decisao, Denuncia
 from ..security import conta_atual, moderador
 
 router = APIRouter(tags=["moderação"])
@@ -52,3 +52,22 @@ async def decidir(conta: UUID, dados: Decisao, eu: UUID = Depends(moderador), co
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Não é possível moderar a própria conta")
     if not await moderacao.decidir(con, moderador=eu, conta=conta, acao=dados.acao, observacao=dados.observacao):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Conta não encontrada")
+
+
+@router.post("/moderacao/contas/{conta}/aviso", status_code=status.HTTP_204_NO_CONTENT)
+async def avisar(conta: UUID, dados: Aviso, request: Request, eu: UUID = Depends(moderador), con=Depends(conexao)):
+    """Envia um e-mail para a conta (ex.: advertência). O moderador nunca vê o endereço;
+    o envio fica registrado em contatos_log."""
+    exigir_limite("aviso", 30, str(eu), janela_s=3600, anonimizar=False)
+    remetente = (await repo.buscar_conta(con, eu))["handle"]
+    enviado = await contato.enviar_aviso(
+        con,
+        request.app.state.cifrador_email,
+        request.app.state.carteiro,
+        conta_id=conta,
+        assunto=dados.assunto,
+        texto=dados.mensagem,
+        enviado_por=remetente,
+    )
+    if not enviado:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Conta sem e-mail cadastrado")

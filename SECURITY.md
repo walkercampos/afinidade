@@ -8,8 +8,8 @@ diretamente com a pessoa mantenedora. Respondemos em até 7 dias.
 ## Princípios
 
 1. **Minimização:** o dado mais seguro é o que não existe. Não guardamos senha, telefone, nome civil,
-   IP, coordenadas, data de nascimento nem metadados de fotos. O e-mail existe só como HMAC com chave
-   fora do banco (dá para achar a conta de quem digita o e-mail, mas não para ler e-mail nenhum).
+   IP, coordenadas, data de nascimento nem metadados de fotos. O e-mail existe como HMAC (para achar a
+   conta) e cifrado (para avisos), cada um com sua chave fora do banco; só é aberto para enviar um e-mail.
 2. **Cifrado em repouso:** mensagens, fotos e evidências de denúncias são cifradas com AES-256-GCM. A chave
    fica fora do banco.
 3. **Exclusão real:** apagar a conta remove tudo na hora (sem *soft delete*) e invalida as sessões.
@@ -24,7 +24,7 @@ diretamente com a pessoa mantenedora. Respondemos em até 7 dias.
 | Roubo de sessão (XSS) | cookie HttpOnly; o front insere dados só como texto; CSP `script-src 'self'` |
 | CSRF | `SameSite=Strict` + header `X-CSRF` obrigatório em escrita |
 | Senha roubada ou phishing | não existe senha; **biometria** com passkeys (WebAuthn): assinatura presa ao domínio, biometria/PIN obrigatórios, desafios de uso único, detecção de clone |
-| Vazamento de e-mails | e-mail só como HMAC-SHA256 com `EMAIL_PEPPER` fora do banco |
+| Vazamento de e-mails | nunca em texto: HMAC-SHA256 (`EMAIL_PEPPER`) + AES-256-GCM (`CHAVE_EMAIL`), chaves fora do banco e separadas das demais; moderadores enviam avisos sem ver o endereço; todo contato registrado |
 | Força bruta no código do e-mail | 5 tentativas por código, 5 envios por hora por e-mail, limite por IP (sem guardar o IP) |
 | Descobrir quem tem conta | respostas idênticas e envio de e-mail depois da resposta (sem diferença de tempo) |
 | Sessão vazada ou conta banida | `token_versao`: sair, excluir ou banir invalida todos os tokens na hora |
@@ -47,7 +47,7 @@ diretamente com a pessoa mantenedora. Respondemos em até 7 dias.
       `CHAVE_MENSAGENS`**: perdê-la torna mensagens e fotos ilegíveis.
 - [ ] `DATABASE_URL` com `sslmode=require`
 - [ ] `WEBAUTHN_RP_ID` e `WEBAUTHN_ORIGENS` com o domínio **definitivo** (trocar depois invalida as passkeys)
-- [ ] Resend com domínio verificado (SPF/DKIM) e chave só de envio; **backup seguro do `EMAIL_PEPPER`**
+- [ ] Resend com domínio verificado (SPF/DKIM) e chave só de envio; **backup seguro do `EMAIL_PEPPER` e da `CHAVE_EMAIL`**
 - [ ] 2FA nas contas do GitHub, Render e Neon; proteção da branch `main` exigindo a pipeline verde
 - [ ] Pelo menos uma pessoa moderadora ativa
 - [ ] Revisão jurídica: LGPD, Marco Civil (art. 15) e verificação de idade

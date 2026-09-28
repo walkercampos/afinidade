@@ -17,8 +17,10 @@ e-mail + 18+ + consentimento                  "Entrar com biometria"        "Rec
 
 | O quê | Como |
 |---|---|
-| E-mail no banco | **nunca em texto**: só `HMAC-SHA256(EMAIL_PEPPER, e-mail)`. Com o banco vazado, e sem a chave, não dá para descobrir os e-mails, nem por dicionário. |
-| Enviar o código | usa o endereço que a pessoa acabou de digitar; nada é lido do banco |
+| E-mail no banco | **nunca em texto**. Duas formas, cada uma com sua chave fora do banco: `HMAC-SHA256(EMAIL_PEPPER, e-mail)` para **achar** a conta, e o e-mail **cifrado** com AES-256-GCM (`CHAVE_EMAIL`) para o app poder **falar** com a pessoa. Com só o banco vazado, nenhum e-mail aparece. |
+| Enviar o código | usa o endereço que a pessoa acabou de digitar |
+| Falar com a pessoa | o e-mail só é decifrado na hora do envio, dentro do servidor. Moderadores enviam avisos **sem ver o endereço**, e todo envio fica em `contatos_log` (quem, quando, assunto; o corpo não é guardado). |
+| A própria pessoa | vê o e-mail mascarado em *Conta* (`j****@gmail.com`) |
 | Código e link | também só em hash; uso único; valem 15 min; um pedido novo invalida o anterior |
 | Descobrir quem tem conta | impossível pela API: "entrar" e "criar conta" respondem igual, e o envio acontece depois da resposta (o tempo de resposta também não denuncia) |
 | Texto do e-mail | neutro ("Seu código de acesso"), sem o nome do app, porque aparece na tela de bloqueio |
@@ -30,6 +32,17 @@ O que o app **não** consegue esconder: o provedor de e-mail (ex.: Resend) vê o
 código. Por isso a tela de cadastro sugere usar um e-mail só para isso ou um alias (Ocultar meu
 e-mail do iCloud, Firefox Relay).
 
+### Como falar com a pessoa
+
+- **Pela linha de comando** (quem administra o servidor):
+  `python -m app.admin avisar <apelido> "<assunto>" "<mensagem>"`
+- **Pela moderação** (API, só moderadores): `POST /api/moderacao/contas/{id}/aviso`
+  com `{"assunto": "...", "mensagem": "..."}`.
+
+Nos dois casos o endereço não é mostrado a ninguém, o texto segue o mesmo tom neutro, e o envio é
+registrado. Pela LGPD, o uso do e-mail é informado no cadastro: acesso, recuperação e avisos sobre a
+conta. **Propaganda ou newsletter exigiriam um consentimento separado**, que o app não pede.
+
 ## Biometria (passkeys)
 
 - A **chave privada nunca sai do aparelho**, e a digital ou o rosto nunca chegam ao app. O servidor
@@ -39,7 +52,7 @@ e-mail do iCloud, Firefox Relay).
 - **Desafios de uso único no banco**, contador contra autenticador clonado e `user.id` aleatório (não o id da conta).
 - A pessoa pode ter várias (celular, computador) e remover qualquer uma; o e-mail sempre permite voltar.
 
-Arquivos: `app/verificacao.py`, `app/email.py` e `app/routes/auth.py` (e-mail); `app/passkeys.py` e
+Arquivos: `app/verificacao.py`, `app/contato.py`, `app/email.py` e `app/routes/auth.py` (e-mail); `app/passkeys.py` e
 `app/routes/passkeys.py` (biometria); migrações `0007_passkeys.sql` e `0008_email.sql`; no front,
 `telas/entrar.js`, `telas/biometria.js`, `telas/verificar.js` e `telas/conta.js`.
 
@@ -55,8 +68,8 @@ Arquivos: `app/verificacao.py`, `app/email.py` e `app/routes/auth.py` (e-mail); 
    - `EMAIL_PROVEDOR=resend` (o `render.yaml` já define)
    - `RESEND_API_KEY=re_...`
    - `EMAIL_REMETENTE=Afinidade <nao-responda@seudominio.com>`
-   - `EMAIL_PEPPER`: o `render.yaml` gera sozinho. **Nunca troque depois de ter usuários**:
-     ninguém mais seria encontrado pelo e-mail (a biometria continuaria funcionando).
+   - `EMAIL_PEPPER` e `CHAVE_EMAIL`: o `render.yaml` gera as duas sozinho. **Nunca troque depois de
+     ter usuários** e guarde um backup seguro (ver tabela no item 4).
 
 Alternativa: `EMAIL_PROVEDOR=smtp` com `SMTP_HOST`, `SMTP_PORTA` (587), `SMTP_USUARIO` e `SMTP_SENHA`,
 por exemplo com Brevo, Mailgun ou o SMTP do seu provedor. A conexão exige TLS.
@@ -96,6 +109,7 @@ As migrações rodam sozinhas na próxima inicialização (`python -m app.admin 
 | Arquivo | O que cobre |
 |---|---|
 | `tests/test_email.py` | e-mail nunca em texto no banco, respostas iguais com ou sem conta, cadastro com e-mail existente, normalização, limite de tentativas, uso único, expiração, pedido novo invalidando o anterior, link mágico, texto discreto, limite de envios, disputa de apelido |
+| `tests/test_contato.py` | e-mail cifrado, aviso da moderação sem revelar o endereço, só moderadores, linha de comando, registro em `contatos_log`, separação de chaves |
 | `tests/test_unit_email.py` | cada carteiro (arquivo, Resend, SMTP com TLS obrigatório), falhas de envio e as travas de configuração |
 | `tests/test_passkeys.py` | biometria com criptografia real (autenticador de software): phishing, replay, clone, chave errada, falta de verificação, desafio de outra conta, banimento, exclusão |
 | `tests/e2e/fluxo.test.js` | no navegador: cadastro pelo e-mail lendo o código da "caixa de entrada", ativação da biometria com o autenticador virtual do Chrome, sair e entrar só com a digital, e o link do e-mail |
@@ -115,6 +129,7 @@ As migrações rodam sozinhas na próxima inicialização (`python -m app.admin 
 | `JWT_SECRET` | todo mundo é deslogado (seguro; faça isso se suspeitar de vazamento) |
 | `RESEND_API_KEY` / `SMTP_SENHA` | nada; só atualize no painel |
 | `EMAIL_PEPPER` | ninguém é mais encontrado pelo e-mail. **Faça backup e não troque.** |
+| `CHAVE_EMAIL` | o app não consegue mais mandar avisos (o acesso por e-mail continua funcionando). **Faça backup e não troque.** |
 | `CHAVE_MENSAGENS` | mensagens e fotos existentes ficam ilegíveis. **Faça backup e não troque.** |
 | `WEBAUTHN_RP_ID` | as passkeys param de funcionar; as pessoas reativam após entrar por e-mail |
 

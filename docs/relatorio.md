@@ -50,7 +50,7 @@ Essa conta é feita dentro do banco de dados. Por isso o app continua rápido me
 
 | Informação | O que acontece |
 |---|---|
-| E-mail | Pedido só para criar a conta e recuperar o acesso. Fica guardado **embaralhado** (nem nós conseguimos ler) e nunca aparece para ninguém |
+| E-mail | Pedido para criar a conta, recuperar o acesso e avisos importantes. Fica guardado **criptografado** (com uma chave que não fica no banco) e nunca aparece para ninguém: nem os moderadores veem o endereço quando mandam um aviso |
 | Telefone, nome real, senha | **Não pedimos** |
 | Data de nascimento | Usada só para confirmar os 18 anos e **descartada** |
 | Endereço de internet (IP) | **Não é gravado** |

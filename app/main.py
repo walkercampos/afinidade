@@ -12,7 +12,7 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
-from . import mensagens, verificacao
+from . import contato, mensagens, verificacao
 from . import passkeys as dominio_passkeys
 from .config import config
 from .cripto import Cifrador
@@ -50,6 +50,7 @@ async def lifespan(app: FastAPI):
     app.state.pool = await criar_pool(cfg.database_url)
     app.state.cifrador = Cifrador(cfg.chave_mensagens)
     app.state.carteiro = criar_carteiro(cfg.email)
+    app.state.cifrador_email = contato.criar_cifrador(cfg.chave_email)
     novas = await migrar(app.state.pool)
     if novas:
         log.info("Migrações aplicadas: %s", ", ".join(novas))

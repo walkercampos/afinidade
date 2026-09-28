@@ -18,7 +18,7 @@ Rede social adulta (18+) de conexões por afinidade, com foco em diversidade de 
 
 | Funcionalidade | Resumo |
 |---|---|
-| Conta sem senha | Criada com **e-mail** (código ou link), que fica guardado só como hash; depois, **biometria** (digital, rosto ou PIN). Sem telefone nem nome. 18+ e consentimento obrigatórios. |
+| Conta sem senha | Criada com **e-mail** (código ou link), guardado **criptografado**; depois, **biometria** (digital, rosto ou PIN). Sem telefone nem nome. 18+ e consentimento obrigatórios. |
 | Matchmaking | Gênero mútuo → limites absolutos → afinidade ponderada (quero 3 · quero/curioso 2 · curioso 1), calculado no Postgres. |
 | Gostos parecidos | Similaridade de preferências (0–100%) para ver quem curte as mesmas coisas. |
 | Localização aproximada | Só um quadrado de ~5 km; distância exibida em faixas ("até 10 km"). |
@@ -67,7 +67,8 @@ Roda em todo push/PR e **todo dia às 06:17** para pegar vulnerabilidades novas.
 ## Anonimato: limites honestos
 
 O app não guarda telefone, IP, coordenadas, data de nascimento nem metadados de fotos; o e-mail fica
-só como hash (ninguém consegue lê-lo, nem nós); e tudo é apagado de verdade quando a conta é excluída. Mesmo assim, **não prometa "100% de anonimato"**: o provedor
+criptografado com chave fora do banco e nunca aparece para ninguém; e tudo é apagado de verdade quando
+a conta é excluída. Mesmo assim, **não prometa "100% de anonimato"**: o provedor
 de hospedagem vê IPs de conexão, e um apelido ou bio reaproveitado de outra rede pode identificar alguém.
 Antes de abrir ao público, revise com advogado(a): LGPD (dados sobre vida sexual são sensíveis),
 Marco Civil (art. 15, guarda de registros de acesso) e ECA Digital (verificação de idade).

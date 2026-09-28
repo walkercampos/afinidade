@@ -1,4 +1,4 @@
-"""Cifragem em repouso (AES-256-GCM) para mensagens do chat e evidências de denúncias.
+"""Cifragem em repouso (AES-256-GCM): mensagens do chat, fotos, evidências de denúncias e e-mails.
 
 Não é criptografia ponta a ponta: o servidor tem a chave. O que ela protege é o cenário
 mais comum de vazamento — dump do banco, backup exposto, acesso indevido ao provedor do
@@ -15,9 +15,10 @@ _VERSAO = b"\x01"  # permite trocar algoritmo/chave no futuro sem perder o que j
 
 
 class Cifrador:
-    def __init__(self, segredo: str):
-        # Deriva 32 bytes de um segredo de qualquer formato, com separação de domínio.
-        self._aead = AESGCM(hashlib.sha256(b"matchmaking/mensagens/v1|" + segredo.encode()).digest())
+    def __init__(self, segredo: str, dominio: bytes = b"matchmaking/mensagens/v1"):
+        # Deriva 32 bytes de um segredo de qualquer formato. O domínio separa os usos: a chave
+        # dos e-mails nunca abre mensagens, e vice-versa, mesmo se alguém reusar o segredo.
+        self._aead = AESGCM(hashlib.sha256(dominio + b"|" + segredo.encode()).digest())
 
     def cifrar_bytes(self, dados: bytes, contexto: bytes) -> bytes:
         """`contexto` (AAD) amarra o conteúdo cifrado ao lugar dele: copiar o blob para outra

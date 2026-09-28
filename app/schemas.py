@@ -67,6 +67,11 @@ class Cadastro(BaseModel):
         return self
 
 
+class MinhaConta(BaseModel):
+    handle: str
+    email: str | None  # mascarado (a****@gmail.com)
+
+
 class VerificacaoEnviada(BaseModel):
     """Resposta idêntica exista ou não conta com o e-mail (ninguém descobre quem tem conta)."""
 
@@ -272,6 +277,13 @@ class ContaNaFila(BaseModel):
     situacao: str
     perfil: PerfilPublico | None
     denuncias: list[DenunciaNaFila]
+
+
+class Aviso(BaseModel):
+    """Mensagem da moderação para o e-mail da conta. O endereço nunca é revelado a quem envia."""
+
+    assunto: str = Field(min_length=3, max_length=120)
+    mensagem: str = Field(min_length=3, max_length=4000)
 
 
 class Decisao(BaseModel):
