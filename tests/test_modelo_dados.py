@@ -67,10 +67,19 @@ def test_prazos_de_mensagem_recusados(client, db, ttl):
     assert db.fetchval("SELECT ttl_mensagem_valido($1)", ttl) is False
 
 
-def test_mensagem_guarda_o_prazo_e_mantem_os_5_minutos_por_padrao(conexao_entre, db):
+def test_mensagem_guarda_o_prazo(conexao_entre, db):
     a, b = conexao_entre()
     assert a.post(f"/api/conversas/{b.id}/mensagens", json={"texto": "oi"}).status_code == 201
-    assert db.fetchval("SELECT ttl_minutos FROM mensagens WHERE de_id = $1::uuid", a.id) == 5
+    # O app grava o prazo da conversa (padrão 24 h, Parte 6)...
+    assert db.fetchval("SELECT ttl_minutos FROM mensagens WHERE de_id = $1::uuid", a.id) == 1440
+    # ...e a coluna mantém 5 como padrão do banco: é o prazo das mensagens anteriores à Parte 6
+    assert (
+        db.fetchval(
+            "SELECT column_default FROM information_schema.columns"
+            " WHERE table_name = 'mensagens' AND column_name = 'ttl_minutos'"
+        )
+        == "5"
+    )
     with pytest.raises(asyncpg.CheckViolationError):
         db.execute("UPDATE mensagens SET ttl_minutos = 7 WHERE de_id = $1::uuid", a.id)
     db.execute("UPDATE mensagens SET ttl_minutos = NULL WHERE de_id = $1::uuid", a.id)  # NULL = nunca

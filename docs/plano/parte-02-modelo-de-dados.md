@@ -108,7 +108,7 @@ de quem marcou continua (`SET NULL`); se quem marcou excluir, tudo vai junto.
   tabela nova que "prendesse" uma conta excluída faz o teste falhar (verificado).
 - Colunas sensíveis novas são `bytea` (cifradas), e não há colunas de documento ou nascimento.
 - Os 15 prazos permitidos são aceitos, e valores fora da lista são recusados.
-- A mensagem grava o prazo; o padrão continua 5 minutos.
+- A mensagem grava o prazo (a Parte 6 passou o padrão do app para 24 h; a coluna mantém 5, o prazo das mensagens antigas).
 - Termos e verificação de idade só são gravados completos (versão + data; data + provedor).
 - Proposta de prazo só pode vir de quem está na conversa; excluir a conta limpa tudo.
 - Encontro: check-in depois do início e até 24 h; não dá para marcar consigo mesma.

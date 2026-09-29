@@ -186,3 +186,10 @@ button.link { background: none; box-shadow: none; color: var(--suave); text-deco
 .lista-passkeys small { display: block; color: var(--suave); font-size: .8rem; margin-top: 2px; }
 .lista-passkeys button { flex: none; }
 input.codigo { font-family: var(--mono); font-size: 1.6rem; letter-spacing: .5em; text-align: center; }
+
+/* Prazo das mensagens no cabeçalho da conversa */
+details.prazo { margin-top: 8px; }
+details.prazo summary { cursor: pointer; color: var(--suave); font-size: .9rem; min-height: 44px; display: flex; align-items: center; }
+.linha-prazo { display: flex; gap: 8px; flex-wrap: wrap; }
+.linha-prazo select { flex: 1 1 180px; }
+.proposta-prazo p { margin: 8px 0; }

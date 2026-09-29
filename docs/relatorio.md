@@ -20,7 +20,7 @@ para manter no ar.
 5. Em **Descobrir**, vê os perfis compatíveis com uma porcentagem de afinidade e pode ordenar por
    "mais compatíveis", "gostos parecidos" ou "ativos recentemente". Pode curtir, pular, bloquear ou denunciar.
 6. Quando duas pessoas se curtem, vira uma **conexão** e elas podem **conversar**. Cada mensagem some
-   5 minutos depois de lida, para os dois lados.
+   um tempo depois de lida, para os dois lados: 24 horas por padrão, e as duas pessoas podem combinar outro prazo (de 5 minutos a 6 meses, ou nunca).
 7. A qualquer momento, o **botão vermelho** (ou a tecla ESC) faz o app sumir na hora e abre o Google.
 8. Em **Conta**, a pessoa pode sair de todos os aparelhos ou **excluir tudo** para sempre.
 
@@ -56,7 +56,7 @@ Essa conta é feita dentro do banco de dados. Por isso o app continua rápido me
 | Endereço de internet (IP) | **Não é gravado** |
 | Localização | Vira um quadrado de ~5 km. **A posição exata é jogada fora.** Os outros veem só "até N km" |
 | Fotos | O app **apaga os dados escondidos** na foto (como o GPS de onde foi tirada) e guarda tudo **cifrado** |
-| Mensagens | Guardadas **cifradas** e **apagadas 5 minutos depois de lidas** |
+| Mensagens | Guardadas **cifradas** e **apagadas no prazo combinado depois de lidas** (24 h por padrão) |
 | Seus limites | Ninguém vê |
 | Conta excluída | **Tudo é apagado na hora**, sem cópia "escondida" |
 

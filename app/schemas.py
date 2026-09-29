@@ -310,8 +310,29 @@ class Mensagem(BaseModel):
     texto: str
     criado_em: datetime
     lida_em: datetime | None
-    # Quando a mensagem some para os dois lados (5 min após a leitura).
+    # Prazo gravado no envio (minutos depois da leitura); None = nunca expira.
+    ttl_minutos: int | None
+    # Quando a mensagem some para os dois lados (lida_em + prazo); None enquanto não lida.
     expira_em: datetime | None
+
+
+class PropostaPrazo(BaseModel):
+    ttl_minutos: int | None
+    minha: bool  # fui eu que propus (então espero a outra pessoa confirmar)
+    expira_em: datetime
+
+
+class PrazoConversa(BaseModel):
+    ttl_minutos: int | None  # prazo atual; None = nunca expira
+    padrao: int
+    opcoes: list[int | None]
+    proposta: PropostaPrazo | None
+
+
+class NovoPrazo(BaseModel):
+    """Prazo proposto, em minutos depois da leitura; null = nunca expira."""
+
+    ttl_minutos: int | None
 
 
 class Conversa(BaseModel):

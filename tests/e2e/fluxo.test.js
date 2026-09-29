@@ -118,7 +118,7 @@ test("fotos borradas, pedido de acesso, conexão, chat efêmero e pânico", asyn
   await mar.pagina.locator(".cartao", { hasText: `leo_${sufixo}` }).locator("button:has-text('Curtir')").click();
   await mar.pagina.waitForSelector("text=É uma conexão");
 
-  // Chat: o texto aparece literal (sem HTML) e começa a contagem de 5 minutos ao ser lido
+  // Chat: o texto aparece literal (sem HTML) e começa a contagem do prazo ao ser lido
   await leo.pagina.goto(`${BASE}/#/conexoes`);
   await semRolagemHorizontal(leo.pagina);
   await leo.pagina.locator(".cartao", { hasText: `mar_${sufixo}` }).locator("button:has-text('Conversar')").click();
@@ -270,4 +270,45 @@ test("barra de distância: liga com a localização, salva ao soltar e o Descobr
   await pessoa.pagina.waitForSelector("text=Você viu todo mundo por enquanto");
   assert.deepEqual(pessoa.erros, []);
   await pessoa.ctx.close();
+});
+
+test("prazo das mensagens: uma pessoa propõe, a outra recebe o aviso na hora e aceita", async () => {
+  const ana = await novaPessoa(`pa_${sufixo}`, "homem-trans", "mulher-trans");
+  const bia = await novaPessoa(`pb_${sufixo}`, "mulher-trans", "homem-trans");
+  for (const [quem, alvo] of [[ana, `pb_${sufixo}`], [bia, `pa_${sufixo}`]]) {
+    await quem.pagina.goto(`${BASE}/#/descobrir`);
+    await quem.pagina.locator(".cartao", { hasText: alvo }).locator("button:has-text('Curtir')").click();
+  }
+  await bia.pagina.waitForSelector("text=É uma conexão");
+
+  async function abrirConversa(quem, alvo) {
+    await quem.pagina.goto(`${BASE}/#/conexoes`);
+    await quem.pagina.locator(".cartao", { hasText: alvo }).locator("button:has-text('Conversar')").click();
+    await quem.pagina.waitForSelector("text=apagadas 24 horas depois de lidas");
+  }
+  await abrirConversa(ana, `pb_${sufixo}`);
+  await abrirConversa(bia, `pa_${sufixo}`);
+
+  // Ana propõe 1 hora
+  await ana.pagina.click("details.prazo summary");
+  await ana.pagina.selectOption("details.prazo select", "60");
+  await ana.pagina.click("details.prazo button:has-text('Propor')");
+  await ana.pagina.waitForSelector("text=Esperando");
+
+  // Bia recebe pelo canal em tempo real (bem antes da busca de reserva de 20 s) e aceita
+  await bia.pagina.click("details.prazo summary");
+  await bia.pagina.waitForSelector("text=propôs mudar para: 1 hora", { timeout: 8000 });
+  await bia.pagina.click("details.prazo button:has-text('Aceitar')");
+  await bia.pagina.waitForSelector("text=apagadas 1 hora depois de lidas");
+  await ana.pagina.waitForSelector("text=apagadas 1 hora depois de lidas", { timeout: 8000 });
+
+  // A próxima mensagem já usa o prazo novo e chega para Bia pelo aviso em tempo real
+  await ana.pagina.fill("textarea[name=texto]", "vale o prazo novo");
+  await ana.pagina.click("button:has-text('Enviar')");
+  await bia.pagina.waitForSelector(".msg:has-text('vale o prazo novo') .expira:has-text('some em 59:')", { timeout: 8000 });
+  await semRolagemHorizontal(bia.pagina);
+
+  assert.deepEqual([...ana.erros, ...bia.erros], []);
+  await ana.ctx.close();
+  await bia.ctx.close();
 });

@@ -96,7 +96,7 @@ com CI verde. A `main` recebe versões estáveis.
 
 1. **Parte 2** ✅ ([modelo de dados](parte-02-modelo-de-dados.md)) — migrações para tudo que as partes seguintes precisam (feito primeiro para não
    reabrir o esquema a cada parte).
-2. **Parte 6** — TTL configurável e WebSocket (muda o comportamento visível mais importante).
+2. **Parte 6** ✅ — TTL configurável e WebSocket (muda o comportamento visível mais importante).
 3. **Parte 3** — verificação de idade (bloqueia a abertura ao público).
 4. **Parte 10** — termos, consentimento LGPD e modo discrição (também bloqueia a abertura).
 5. **Parte 9** — segurança física.
