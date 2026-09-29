@@ -71,6 +71,7 @@ class Cadastro(BaseModel):
 class MinhaConta(BaseModel):
     handle: str
     email: str | None  # mascarado (a****@gmail.com)
+    moderador: bool = False  # mostra o atalho para o painel de moderação
 
 
 class VerificacaoEnviada(BaseModel):

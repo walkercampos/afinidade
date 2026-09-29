@@ -18,3 +18,4 @@ contas de teste e a "foto" é uma imagem de teste.
 | 10 | Conexões | [10-conexoes.png](10-conexoes.png) |
 | 11 | Chat | [11-chat.png](11-chat.png) |
 | 12 | Conta | [12-conta.png](12-conta.png) |
+| 13 | Painel de moderação (só moderadores) | [13-moderacao.png](13-moderacao.png) |

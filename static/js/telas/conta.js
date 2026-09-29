@@ -69,6 +69,10 @@ export async function telaConta(_parametro, ctx) {
       h("p", { class: "nota" }, conta.email
         ? `E-mail de acesso: ${conta.email}. Guardado criptografado; usado só para códigos de acesso e avisos sobre a conta.`
         : "Entre uma vez com um código por e-mail para registrar o e-mail de acesso.")),
+    conta.moderador && h("section", { class: "cartao" },
+      h("h2", {}, "Moderação"),
+      h("p", { class: "nota" }, "Você tem acesso ao painel de moderação."),
+      h("div", { class: "acoes" }, h("button", { type: "button", onclick: () => irPara("moderacao") }, "Abrir painel"))),
     passkeys,
     secaoAparencia(preferencias),
     h("div", { class: "cartao" },
