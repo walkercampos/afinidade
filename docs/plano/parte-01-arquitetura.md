@@ -94,7 +94,7 @@ chaves fora do banco  nenhum documento guardado aqui
 Cada parte é entregue em uma branch `funcionalidade/parte-NN-*`, com testes, e integrada à `develop`
 com CI verde. A `main` recebe versões estáveis.
 
-1. **Parte 2** — migrações para tudo que as partes seguintes precisam (feito primeiro para não
+1. **Parte 2** ✅ ([modelo de dados](parte-02-modelo-de-dados.md)) — migrações para tudo que as partes seguintes precisam (feito primeiro para não
    reabrir o esquema a cada parte).
 2. **Parte 6** — TTL configurável e WebSocket (muda o comportamento visível mais importante).
 3. **Parte 3** — verificação de idade (bloqueia a abertura ao público).
