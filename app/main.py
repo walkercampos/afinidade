@@ -12,12 +12,13 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
-from . import contato, mensagens, verificacao
+from . import VERSAO, contato, mensagens, verificacao
 from . import passkeys as dominio_passkeys
 from .config import config
 from .cripto import Cifrador
 from .db import criar_pool, migrar
 from .email import criar_carteiro
+from .observabilidade import configurar_logs, erro_inesperado, registrar_requisicao
 from .routes import auth, chat, descoberta, fotos, moderacao, passkeys, perfil, saude
 
 log = logging.getLogger("matchmaking")
@@ -64,9 +65,10 @@ async def lifespan(app: FastAPI):
 
 def criar_app() -> FastAPI:
     cfg = config()
+    configurar_logs(cfg.producao)
     # Em produção a documentação interativa fica desligada: menos superfície exposta.
     docs = {} if not cfg.producao else {"docs_url": None, "redoc_url": None, "openapi_url": None}
-    app = FastAPI(title="Afinidade API", version="0.3.0", lifespan=lifespan, **docs)
+    app = FastAPI(title="Afinidade API", version=VERSAO, lifespan=lifespan, **docs)
 
     @app.middleware("http")
     async def cabecalhos_de_seguranca(request: Request, call_next):
@@ -87,6 +89,10 @@ def criar_app() -> FastAPI:
         if cfg.producao:
             h["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
         return response
+
+    # Registrado depois = mais externo: o id da requisição cobre também os cabeçalhos acima.
+    app.middleware("http")(registrar_requisicao)
+    app.add_exception_handler(Exception, erro_inesperado)
 
     api = APIRouter(prefix="/api")
     for modulo in (saude, auth, passkeys, perfil, descoberta, fotos, chat, moderacao):

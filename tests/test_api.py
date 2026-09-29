@@ -2,6 +2,7 @@
 
 import pytest
 
+from app import VERSAO
 from tests.conftest import CADASTRO, bearer, criar_conta, entrar_por_email, novo_email
 
 pytestmark = pytest.mark.usefixtures("client")
@@ -191,4 +192,4 @@ def test_apelido_repetido(client, pessoa):
 
 
 def test_saude(client):
-    assert client.get("/api/saude").json() == {"status": "ok", "versao": "dev"}
+    assert client.get("/api/saude").json() == {"status": "ok", "versao": "dev", "lancamento": VERSAO}

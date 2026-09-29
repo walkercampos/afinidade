@@ -1,11 +1,17 @@
 # Afinidade
 
+[![CI/CD](https://github.com/walkercampos/afinidade/actions/workflows/ci.yml/badge.svg)](https://github.com/walkercampos/afinidade/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/walkercampos/afinidade/actions/workflows/codeql.yml/badge.svg)](https://github.com/walkercampos/afinidade/actions/workflows/codeql.yml)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-0.4.0-e8587e)
+![Cobertura mínima](https://img.shields.io/badge/cobertura%20m%C3%ADnima-90%25-9c7cf0)
+
 Rede social adulta (18+) de conexões por afinidade, com foco em diversidade de gênero, fetiches e
 **privacidade**. É gratuita para quem usa, anônima entre usuários e roda com custo zero de infraestrutura.
 
 - **Para entender o projeto sem jargão:** [docs/relatorio.md](docs/relatorio.md)
 - **Para desenvolver:** [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/arquitetura.md](docs/arquitetura.md)
-- **Segurança:** [SECURITY.md](SECURITY.md) · **E-mail + biometria:** [docs/autenticacao.md](docs/autenticacao.md) · **Próximos passos:** [docs/roadmap.md](docs/roadmap.md)
+- **Segurança:** [SECURITY.md](SECURITY.md) · **E-mail + biometria:** [docs/autenticacao.md](docs/autenticacao.md) · **Próximos passos:** [docs/roadmap.md](docs/roadmap.md) · **Plano de execução:** [docs/plano/](docs/plano/parte-01-arquitetura.md) · **Telas:** [docs/telas/](docs/telas/README.md)
+- **Operação (deploy, versões, incidentes, LGPD):** [docs/operacao.md](docs/operacao.md) · **Mudanças:** [CHANGELOG.md](CHANGELOG.md)
 - **Linguagem visual "Véu Luminoso":** [docs/design/](docs/design/filosofia-veu-luminoso.md)
 
 <p>

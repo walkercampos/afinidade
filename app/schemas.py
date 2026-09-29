@@ -161,6 +161,12 @@ class Localizacao(BaseModel):
     distancia_max_km: int | None = Field(default=None, ge=5, le=500)
 
 
+class Distancia(BaseModel):
+    """Raio escolhido na barra deslizante. `None` = qualquer distância."""
+
+    distancia_max_km: int | None = Field(default=None, ge=5, le=500)
+
+
 class LocalizacaoSalva(BaseModel):
     regiao: str | None = None  # célula geohash (~5 km), nunca a coordenada
     distancia_max_km: int | None = None

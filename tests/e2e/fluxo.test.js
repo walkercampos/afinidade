@@ -231,3 +231,43 @@ test("link do e-mail entra no app e some do histórico", async () => {
   assert.ok(!pagina.url().includes("verificar"), "o token ficou na URL");
   await ctx.close();
 });
+
+async function localizacaoSimulada(pessoa, posicao = { latitude: -23.5505, longitude: -46.6333 }) {
+  await pessoa.ctx.grantPermissions(["geolocation"]);
+  await pessoa.ctx.setGeolocation(posicao);
+}
+
+test("barra de distância: liga com a localização, salva ao soltar e o Descobrir avisa quando acaba", async () => {
+  const pessoa = await novaPessoa(`geo_${sufixo}`, "travesti", "travesti");
+  await localizacaoSimulada(pessoa);
+  const barra = pessoa.pagina.locator("#distancia");
+  assert.ok(await barra.isDisabled(), "sem localização a barra fica desligada");
+
+  await pessoa.pagina.click("button:has-text('Usar minha localização')");
+  await pessoa.pagina.waitForSelector("button:has-text('Atualizar minha região')");
+  assert.ok(await barra.isEnabled());
+  await barra.fill("7"); // 7ª parada = 50 km; fill dispara input + change, como soltar a barra
+  await pessoa.pagina.waitForSelector("text=Distância salva: até 50 km");
+  assert.equal(await pessoa.pagina.textContent("output.valor-barra"), "Até 50 km");
+  const salvo = await (await pessoa.ctx.request.get(`${BASE}/api/perfil`)).json();
+  assert.equal(salvo.localizacao.distancia_max_km, 50);
+  await semRolagemHorizontal(pessoa.pagina);
+
+  // Uma pessoa compatível por perto (com um raio definido, quem não tem localização não aparece)
+  const vizinha = await novaPessoa(`viz_${sufixo}`, "travesti", "travesti");
+  await localizacaoSimulada(vizinha, { latitude: -23.5610, longitude: -46.6560 });
+  await vizinha.pagina.click("button:has-text('Usar minha localização')");
+  await vizinha.pagina.waitForSelector("button:has-text('Atualizar minha região')");
+  await vizinha.ctx.close();
+  await pessoa.pagina.goto(`${BASE}/#/descobrir`);
+  await pessoa.pagina.locator(".cartao", { hasText: `viz_${sufixo}` }).waitFor();
+  // Pula todos (o banco pode ter pessoas de execuções anteriores); depois do último, o aviso
+  const vazio = pessoa.pagina.locator("p.vazio");
+  while (await pessoa.pagina.locator("main .cartao").count()) {
+    assert.ok(await vazio.isHidden(), "o aviso não pode aparecer enquanto ainda há cartões");
+    await pessoa.pagina.locator("main .cartao button:has-text('Pular')").first().click();
+  }
+  await pessoa.pagina.waitForSelector("text=Você viu todo mundo por enquanto");
+  assert.deepEqual(pessoa.erros, []);
+  await pessoa.ctx.close();
+});

@@ -34,7 +34,7 @@ foi copiado: cada item é reimplementado aqui, e só entra o que não enfraquece
 
 | Funcionalidade | Motivo |
 |---|---|
-| Cadastro por e-mail, newsletters | Identifica a pessoa fora do app. |
+| Newsletters e e-mails de marketing | O e-mail só serve para entrar e para avisos importantes. |
 | Pagamentos, planos, créditos, anúncios, afiliados | O app é 100% gratuito; anúncios trazem rastreadores de terceiros. |
 | "Quem visitou meu perfil" | Expõe o comportamento de quem só olhou. |
 | Analytics de terceiros, botões de redes sociais | Rastreamento entre sites. |

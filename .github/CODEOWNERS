@@ -1,0 +1,9 @@
+# Quem revisa o quê. Mudanças nestes caminhos pedem revisão automática do responsável.
+*                     @walkercampos
+# Áreas sensíveis: privacidade, criptografia, autenticação e banco
+/app/cripto.py        @walkercampos
+/app/security.py      @walkercampos
+/app/passkeys.py      @walkercampos
+/app/contato.py       @walkercampos
+/db/migrations/       @walkercampos
+/.github/             @walkercampos

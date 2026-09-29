@@ -1,6 +1,6 @@
 [project]
 name = "afinidade"
-version = "0.3.0"
+version = "0.4.0"
 description = "Rede social adulta (18+) de conexões por afinidade, anônima e de custo zero"
 requires-python = ">=3.11"
 
