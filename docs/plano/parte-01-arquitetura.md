@@ -98,7 +98,7 @@ com CI verde. A `main` recebe versões estáveis.
    reabrir o esquema a cada parte).
 2. **Parte 6** ✅ — TTL configurável e WebSocket (muda o comportamento visível mais importante).
 3. **Parte 3** ✅ ([verificação de idade](parte-03-verificacao-de-idade.md)) — verificação de idade (bloqueia a abertura ao público).
-4. **Parte 10** — termos, consentimento LGPD e modo discrição (também bloqueia a abertura).
+4. **Parte 10** ✅ ([termos e discrição](parte-10-termos-e-discricao.md)) — termos, consentimento LGPD e modo discrição (também bloqueia a abertura).
 5. **Parte 9** — segurança física.
 6. **Parte 7** — painel de moderação e moderação automática.
 7. **Partes 4, 5, 8, 11** — reforços incrementais.

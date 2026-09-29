@@ -316,6 +316,27 @@ class Mensagem(BaseModel):
     expira_em: datetime | None
 
 
+class VersaoTermos(BaseModel):
+    versao: str
+    termos_url: str
+    privacidade_url: str
+
+
+class SituacaoTermos(BaseModel):
+    versao_atual: str
+    aceita: bool
+    versao_aceita: str | None
+    aceitos_em: datetime | None
+
+
+class AceiteTermos(BaseModel):
+    versao: str = Field(max_length=10)
+
+
+class Preferencias(BaseModel):
+    modo_discreto: bool
+
+
 class SituacaoIdade(BaseModel):
     obrigatoria: bool  # exigida para descobrir, curtir e conversar
     verificada: bool

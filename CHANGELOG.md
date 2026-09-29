@@ -28,6 +28,11 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
   nenhuma foto, documento ou CPF. Provedor simulado para desenvolvimento e testes; em produção o
   app não sobe com a verificação obrigatória e sem provedor real.
 
+- Parte 10 do plano: termos de uso e política de privacidade versionados, com aceite explícito
+  no cadastro e novo aceite quando mudarem; modo discreto ("Notas", ícone neutro, inclusive na
+  tela inicial e depois do botão de pânico); tema claro, escuro ou automático.
+- Teste de contrato: toda chamada do front existe na API com o mesmo método.
+
 ### Mudado
 - Visual novo, no padrão dos apps mais usados no mundo: fonte do próprio aparelho, temas claro e
   escuro que seguem o celular, cartões limpos, botões em pílula, chips de interesses e barra de

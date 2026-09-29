@@ -15,6 +15,8 @@ para manter no ar.
    18 anos ou mais e que aceita o uso dos dados sobre sexualidade para encontrar compatibilidades.
    Antes de ver perfis, curtir ou conversar, **confirma a idade** com uma empresa especializada
    (selfie com prova de vida). O app recebe só o resultado; nenhuma foto ou documento fica aqui.
+   Aceita os **termos de uso e a política de privacidade** (páginas públicas, em linguagem simples).
+   Em Conta, pode ligar o **modo discreto**: o app passa a aparecer como "Notas", com ícone neutro.
 2. **Monta o perfil:** um nome de exibição (pode ser inventado), o próprio gênero, os gêneros que busca e,
    para cada prática da lista, marca **Quero**, **Curioso(a)** ou **Limite** (nunca).
 3. Opcionalmente, **ativa a localização aproximada** e escolhe a distância máxima numa barra deslizante (de 5 a 500 km, ou qualquer distância).

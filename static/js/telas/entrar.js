@@ -2,8 +2,9 @@
 import {
   confirmarCodigo, entrarComPasskey, pedirCodigoCadastro, pedirCodigoEntrar, suportaPasskeys,
 } from "../api.js";
-import { formulario, h } from "../dom.js";
+import { avisar, formulario, h } from "../dom.js";
 import { irPara } from "../roteador.js";
+import { aceitarTermosAtuais } from "./termos.js";
 
 const campoEmail = () => [
   h("label", { for: "email" }, "E-mail"),
@@ -12,9 +13,11 @@ const campoEmail = () => [
 ];
 
 /** Segunda etapa: digitar o código que chegou por e-mail. */
-function etapaCodigo(area, email, verificacaoId, reenviar) {
+function etapaCodigo(area, email, verificacaoId, reenviar, { aceitouTermos = false } = {}) {
   const form = formulario(async (f) => {
     const r = await confirmarCodigo(verificacaoId, f.get("codigo"));
+    // A pessoa marcou "Li e aceito" no cadastro: registra o aceite da versão atual.
+    if (aceitouTermos) await aceitarTermosAtuais().catch(() => avisar("Aceite os termos para continuar."));
     irPara(r.novo && suportaPasskeys() ? "biometria" : "descobrir");
   },
   h("p", { class: "nota" }, "Enviamos um código de 6 dígitos para ", h("strong", {}, email),
@@ -55,7 +58,7 @@ function formEntrar(area) {
 function formCriar(area) {
   const pedir = async (dados) => {
     const { verificacao_id } = await pedirCodigoCadastro(dados);
-    etapaCodigo(area, dados.email, verificacao_id, () => pedir(dados));
+    etapaCodigo(area, dados.email, verificacao_id, () => pedir(dados), { aceitouTermos: true });
   };
   return formulario(async (f) => pedir({
     email: f.get("email"), handle: f.get("handle") || null, data_nascimento: f.get("nascimento"),
@@ -76,6 +79,9 @@ function formCriar(area) {
   h("label", { class: "check" }, h("input", { type: "checkbox", name: "maior", required: true }), "Tenho 18 anos ou mais."),
   h("label", { class: "check" }, h("input", { type: "checkbox", name: "consinto", required: true }),
     "Consinto com o tratamento dos meus dados sobre sexualidade para gerar compatibilidades. Posso excluir tudo a qualquer momento."),
+  h("label", { class: "check" }, h("input", { type: "checkbox", name: "termos", required: true }),
+    h("span", {}, "Li e aceito os ", h("a", { href: "/termos.html", target: "_blank", rel: "noopener" }, "termos de uso"),
+      " e a ", h("a", { href: "/privacidade.html", target: "_blank", rel: "noopener" }, "política de privacidade"), ".")),
   h("div", { class: "acoes" }, h("button", { type: "submit" }, "Enviar código de confirmação")));
 }
 

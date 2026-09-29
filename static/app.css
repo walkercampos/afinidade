@@ -281,3 +281,11 @@ details.prazo summary { cursor: pointer; color: var(--acento-texto); font-weight
 .lista-passkeys button { flex: none; }
 .lista-simples { margin: 8px 0 12px; padding-left: 20px; }
 .lista-simples li { margin: 6px 0; }
+
+/* ---------- páginas de texto (termos, privacidade) ---------- */
+body.documento { padding-bottom: 0; }
+body.documento main { padding-bottom: 32px; }
+
+/* ---------- modo discreto ---------- */
+[data-discreto] .selo { display: none; }
+[data-discreto] .marca::before { background: #8e8e99; }

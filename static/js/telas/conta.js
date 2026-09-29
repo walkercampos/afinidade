@@ -1,5 +1,6 @@
 import { adicionarPasskey, api, suportaPasskeys } from "../api.js";
 import { avisar, h } from "../dom.js";
+import { aplicarDiscreto, aplicarTema, temaAtual } from "../discricao.js";
 import { irPara } from "../roteador.js";
 
 const data = (iso) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "nunca");
@@ -31,8 +32,36 @@ async function secaoPasskeys() {
   return secao;
 }
 
+const TEMAS = [["sistema", "Automático"], ["claro", "Claro"], ["escuro", "Escuro"]];
+
+function secaoAparencia(preferencias) {
+  const botoes = TEMAS.map(([valor, rotulo]) => h("button", {
+    type: "button", role: "tab", "aria-selected": String(temaAtual() === valor),
+    onclick: () => {
+      aplicarTema(valor);
+      botoes.forEach((b, i) => b.setAttribute("aria-selected", String(TEMAS[i][0] === valor)));
+    },
+  }, rotulo));
+  const discreto = h("input", { type: "checkbox", name: "discreto", checked: preferencias.modo_discreto,
+    onchange: async (ev) => {
+      const ligado = ev.target.checked;
+      try {
+        await api("/conta/preferencias", { metodo: "PUT", corpo: { modo_discreto: ligado } });
+        aplicarDiscreto(ligado);
+        avisar(ligado ? "Modo discreto ligado" : "Modo discreto desligado");
+      } catch (e) { ev.target.checked = !ligado; avisar(e.message); }
+    } });
+  return h("section", { class: "cartao" },
+    h("h2", {}, "Aparência e discrição"),
+    h("div", { class: "abas", role: "tablist", "aria-label": "Tema" }, botoes),
+    h("label", { class: "check" }, discreto,
+      h("span", {}, h("strong", {}, "Modo discreto. "),
+        "Na aba do navegador, no histórico e na tela inicial o app aparece como \"Notas\", com um ícone neutro.")),
+    h("p", { class: "nota" }, "Dica: instale o app na tela inicial com o modo discreto ligado."));
+}
+
 export async function telaConta(_parametro, ctx) {
-  const [conta, passkeys] = await Promise.all([api("/conta"), secaoPasskeys()]);
+  const [conta, passkeys, preferencias] = await Promise.all([api("/conta"), secaoPasskeys(), api("/conta/preferencias")]);
   ctx.mostrar(h("h1", {}, "Conta"),
     h("section", { class: "cartao" },
       h("h2", {}, "Acesso"),
@@ -41,6 +70,7 @@ export async function telaConta(_parametro, ctx) {
         ? `E-mail de acesso: ${conta.email}. Guardado criptografado; usado só para códigos de acesso e avisos sobre a conta.`
         : "Entre uma vez com um código por e-mail para registrar o e-mail de acesso.")),
     passkeys,
+    secaoAparencia(preferencias),
     h("div", { class: "cartao" },
       h("h2", {}, "Saída rápida"),
       h("p", { class: "nota" }, "Aperte ESC ou o botão vermelho a qualquer momento: a tela some, a sessão é encerrada e você vai para o Google."),

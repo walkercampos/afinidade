@@ -1,6 +1,7 @@
 // Ponto de entrada do front-end: registra as telas e liga o botão de pânico.
 import { ErroApi } from "./api.js";
 import { avisar } from "./dom.js";
+import { aplicarDiscreto, aplicarTema, sincronizarDiscreto } from "./discricao.js";
 import { instalarPanico } from "./panico.js";
 import { iniciarRoteador, registrarRota } from "./roteador.js";
 import { telaBiometria } from "./telas/biometria.js";
@@ -11,8 +12,11 @@ import { telaDescobrir } from "./telas/descobrir.js";
 import { telaEntrar } from "./telas/entrar.js";
 import { telaIdade, telaIdadeSimulada } from "./telas/idade.js";
 import { telaPerfil } from "./telas/perfil.js";
+import { telaTermos } from "./telas/termos.js";
 import { telaVerificar } from "./telas/verificar.js";
 
+aplicarTema();
+aplicarDiscreto();
 instalarPanico();
 
 registrarRota("entrar", telaEntrar, { comMenu: false });
@@ -24,6 +28,7 @@ registrarRota("chat", telaChat);
 registrarRota("perfil", telaPerfil);
 registrarRota("conta", telaConta);
 registrarRota("idade", telaIdade);
+registrarRota("termos", telaTermos);
 registrarRota("idade-simulada", telaIdadeSimulada, { comMenu: false });
 
 window.addEventListener("unhandledrejection", (ev) => {
@@ -34,3 +39,4 @@ window.addEventListener("unhandledrejection", (ev) => {
 });
 
 iniciarRoteador();
+sincronizarDiscreto();

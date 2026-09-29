@@ -14,6 +14,7 @@ import pytest
 URL = os.environ.get("TEST_DATABASE_URL")
 CADASTRO = {"data_nascimento": "1990-05-01", "confirmo_maior_de_idade": True, "consinto_dados_sensiveis": True}
 _contador = itertools.count()
+ACEITAR_TERMOS = True  # criar_conta/entrar já aceitam a versão atual dos termos
 
 
 @pytest.fixture(scope="session")
@@ -89,6 +90,12 @@ def confirmar(client, verificacao_id: str, email: str):
     codigo, _ = ultimo_email(client, email)
     r = client.post("/api/auth/email/confirmar", json={"verificacao_id": verificacao_id, "codigo": codigo})
     client.cookies.clear()  # os testes usam Bearer; o cookie é testado à parte
+    if r.status_code == 200 and ACEITAR_TERMOS:
+        # Como o front faz no cadastro (caixa "Li e aceito"). Testes dos termos desligam isso.
+        from app.termos import VERSAO_ATUAL
+
+        aceite = client.post("/api/termos/aceitar", json={"versao": VERSAO_ATUAL}, headers=bearer(r))
+        assert aceite.status_code == 200, aceite.text
     return r
 
 
