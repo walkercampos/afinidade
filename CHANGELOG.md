@@ -32,6 +32,8 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
   no cadastro e novo aceite quando mudarem; modo discreto ("Notas", ícone neutro, inclusive na
   tela inicial e depois do botão de pânico); tema claro, escuro ou automático.
 - Teste de contrato: toda chamada do front existe na API com o mesmo método.
+- Parte 9 do plano: encontro seguro. Registro cifrado de onde, quando e com quem; aviso ao contato
+  de confiança; alerta por e-mail se o check-in não vier; atalhos para 190 e 180.
 
 ### Mudado
 - Visual novo, no padrão dos apps mais usados no mundo: fonte do próprio aparelho, temas claro e

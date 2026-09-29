@@ -91,3 +91,11 @@ uma cópia instantânea para onde dá para voltar.
 3. A LGPD exige comunicar a ANPD e as pessoas afetadas em prazo curto quando houver risco
    relevante. Registre o que aconteceu, o que foi afetado e o que foi feito.
 4. Corrija, adicione um teste de regressão e publique pela pipeline normal.
+
+## Tarefas de fundo e hibernação
+
+A cada 30 s o app apaga mensagens expiradas e dispara os **alertas de encontro seguro**. No plano
+gratuito do Render o serviço hiberna sem acesso, e as tarefas só rodam quando ele acorda.
+**Antes de abrir ao público**, use um plano sem hibernação ou configure um monitor externo gratuito
+(ex.: UptimeRobot) chamando `/api/saude` a cada 5 minutos. Um alerta de segurança atrasado é um
+risco real.

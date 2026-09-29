@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import (
     AfterValidator,
+    AwareDatetime,
     BaseModel,
     BeforeValidator,
     Field,
@@ -314,6 +315,30 @@ class Mensagem(BaseModel):
     ttl_minutos: int | None
     # Quando a mensagem some para os dois lados (lida_em + prazo); None enquanto não lida.
     expira_em: datetime | None
+
+
+class NovoEncontro(BaseModel):
+    com: UUID | None = None  # conexão do app com quem é o encontro (opcional)
+    local: str = Field(min_length=2, max_length=200)
+    observacoes: str = Field(default="", max_length=500)
+    # Como o contato de confiança conhece você (ex.: "Ana, sua irmã"). Vai nos e-mails para ele.
+    como_te_conhecem: str = Field(default="", max_length=60)
+    contato_email: Email
+    inicio_em: AwareDatetime
+    checkin_ate: AwareDatetime
+
+
+class Encontro(BaseModel):
+    id: UUID
+    local: str
+    observacoes: str
+    como_te_conhecem: str
+    contato_email: str
+    inicio_em: datetime
+    checkin_ate: datetime
+    situacao: str  # agendado, confirmado_ok, alerta_enviado, cancelado
+    com_nome: str | None
+    com_handle: str | None
 
 
 class VersaoTermos(BaseModel):

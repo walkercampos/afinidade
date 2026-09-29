@@ -126,6 +126,7 @@ export async function telaChat(outroId, ctx) {
       areaProposta),
     h("div", { class: "acoes" },
       ...acoesDeSeguranca(outroId, () => cabecalho, { comMensagens: true }),
+      h("button", { type: "button", class: "secundario", onclick: () => irPara(`encontros/${outroId}`) }, "Encontro seguro"),
       h("button", { type: "button", class: "secundario", onclick: async () => {
         if (!confirm("Apagar agora todas as mensagens que você enviou nesta conversa?")) return;
         await api(`/conversas/${outroId}/mensagens`, { metodo: "DELETE" });

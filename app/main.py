@@ -12,7 +12,7 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
-from . import VERSAO, contato, idade, mensagens, verificacao
+from . import VERSAO, contato, encontros, idade, mensagens, verificacao
 from . import passkeys as dominio_passkeys
 from .config import config
 from .cripto import Cifrador
@@ -20,6 +20,7 @@ from .db import criar_pool, migrar
 from .email import criar_carteiro
 from .observabilidade import configurar_logs, erro_inesperado, registrar_requisicao
 from .routes import auth, chat, descoberta, fotos, moderacao, passkeys, perfil, saude, tempo_real
+from .routes import encontros as rotas_encontros
 from .routes import idade as rotas_idade
 from .routes import termos as rotas_termos
 
@@ -49,6 +50,8 @@ async def _limpeza_periodica(app: FastAPI) -> None:
                 await dominio_passkeys.apagar_desafios_expirados(con)
                 await verificacao.apagar_expiradas(con)
                 await idade.apagar_antigas(con)
+                await encontros.apagar_antigos(con)
+                await encontros.disparar_alertas(con, app.state.cifrador_encontros, app.state.carteiro)
         except Exception:  # a limpeza nunca deve derrubar a API; tenta de novo no próximo ciclo
             log.exception("Falha na limpeza periódica")
         await asyncio.sleep(INTERVALO_LIMPEZA_S)
@@ -61,6 +64,7 @@ async def lifespan(app: FastAPI):
     app.state.cifrador = Cifrador(cfg.chave_mensagens)
     app.state.carteiro = criar_carteiro(cfg.email)
     app.state.cifrador_email = contato.criar_cifrador(cfg.chave_email)
+    app.state.cifrador_encontros = encontros.criar_cifrador(cfg.chave_mensagens)
     novas = await migrar(app.state.pool)
     if novas:
         log.info("Migrações aplicadas: %s", ", ".join(novas))
@@ -113,6 +117,7 @@ def criar_app() -> FastAPI:
         rotas_termos,
         perfil,
         rotas_idade,
+        rotas_encontros,
         descoberta,
         fotos,
         chat,
