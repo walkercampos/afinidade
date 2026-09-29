@@ -19,6 +19,7 @@ async function buscar(cursor) {
   if (r.status === 403) {
     const { detail } = await r.json().catch(() => ({}));
     if (detail === "Verificação de idade pendente") { irPara("idade"); return null; }
+    if (detail === "Aceite dos termos pendente") { irPara("termos"); return null; }
     throw new Error(detail ?? "Acesso negado.");
   }
   if (!r.ok) throw new Error("Não foi possível carregar os perfis.");

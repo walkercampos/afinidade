@@ -15,7 +15,16 @@ from ..config import config
 from ..db import conexao
 from ..email import FalhaNoEnvio, mensagem_de_acesso
 from ..ratelimit import exigir_limite, ip_do_cliente
-from ..schemas import Cadastro, ConfirmarCodigo, ConfirmarLink, MinhaConta, PedidoEntrar, Token, VerificacaoEnviada
+from ..schemas import (
+    Cadastro,
+    ConfirmarCodigo,
+    ConfirmarLink,
+    MinhaConta,
+    PedidoEntrar,
+    Preferencias,
+    Token,
+    VerificacaoEnviada,
+)
 from ..security import apagar_cookie_sessao, conta_atual, iniciar_sessao
 from ..tempo_real import central
 
@@ -145,6 +154,18 @@ async def minha_conta(request: Request, eu: UUID = Depends(conta_atual), con=Dep
     conta = await repo.buscar_conta(con, eu)
     email = await contato.email_da_conta(con, request.app.state.cifrador_email, eu)
     return MinhaConta(handle=conta["handle"], email=contato.mascarar(email) if email else None)
+
+
+@router.get("/conta/preferencias", response_model=Preferencias)
+async def ver_preferencias(eu: UUID = Depends(conta_atual), con=Depends(conexao)):
+    return {"modo_discreto": await con.fetchval("SELECT modo_discreto FROM contas WHERE id = $1", eu)}
+
+
+@router.put("/conta/preferencias", response_model=Preferencias)
+async def salvar_preferencias(dados: Preferencias, eu: UUID = Depends(conta_atual), con=Depends(conexao)):
+    """Modo discrição: nome e ícone neutros no navegador e na tela inicial (vale em todos os aparelhos)."""
+    await con.execute("UPDATE contas SET modo_discreto = $2 WHERE id = $1", eu, dados.modo_discreto)
+    return dados
 
 
 @router.delete("/conta", status_code=status.HTTP_204_NO_CONTENT)

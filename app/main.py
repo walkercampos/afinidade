@@ -21,6 +21,7 @@ from .email import criar_carteiro
 from .observabilidade import configurar_logs, erro_inesperado, registrar_requisicao
 from .routes import auth, chat, descoberta, fotos, moderacao, passkeys, perfil, saude, tempo_real
 from .routes import idade as rotas_idade
+from .routes import termos as rotas_termos
 
 log = logging.getLogger("matchmaking")
 DIR_STATIC = Path(__file__).resolve().parent.parent / "static"
@@ -105,7 +106,19 @@ def criar_app() -> FastAPI:
     app.add_exception_handler(Exception, erro_inesperado)
 
     api = APIRouter(prefix="/api")
-    for modulo in (saude, auth, passkeys, perfil, rotas_idade, descoberta, fotos, chat, moderacao, tempo_real):
+    for modulo in (
+        saude,
+        auth,
+        passkeys,
+        rotas_termos,
+        perfil,
+        rotas_idade,
+        descoberta,
+        fotos,
+        chat,
+        moderacao,
+        tempo_real,
+    ):
         api.include_router(modulo.router)
     app.include_router(api)
     # Front-end estático no mesmo domínio: sem CORS, e o cookie SameSite=Strict funciona.

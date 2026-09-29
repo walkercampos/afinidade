@@ -66,20 +66,20 @@ export async function telaChat(outroId, ctx) {
   const propor = h("button", { type: "button", class: "secundario" }, "Propor");
   let assinatura = ""; // evita redesenhar (e perder o foco do seletor) quando nada mudou
 
-  async function acao(caminho, metodo, corpo) {
+  // Cada chamada fica escrita por inteiro (o teste de contrato confere todas contra a API).
+  async function acao(chamar, mensagem) {
     try {
-      const s = await api(`/conversas/${outroId}/prazo${caminho}`, { metodo, corpo });
-      mostrarPrazo(s ?? await api(`/conversas/${outroId}/prazo`));
-      if (caminho === "/confirmar") avisar("Prazo novo combinado. Vale para as próximas mensagens.");
-      else if (caminho === "") avisar("Proposta enviada");
+      mostrarPrazo(await chamar() ?? await api(`/conversas/${outroId}/prazo`));
+      if (mensagem) avisar(mensagem);
     } catch (e) {
       avisar(e.message);
     }
   }
+  const desistirOuRecusar = () => acao(() => api(`/conversas/${outroId}/prazo/proposta`, { metodo: "DELETE" }));
 
   propor.addEventListener("click", () => {
     const valor = escolha.value === "nunca" ? null : Number(escolha.value);
-    acao("", "POST", { ttl_minutos: valor });
+    acao(() => api(`/conversas/${outroId}/prazo`, { metodo: "POST", corpo: { ttl_minutos: valor } }), "Proposta enviada");
   });
 
   function mostrarPrazo(s) {
@@ -96,13 +96,15 @@ export async function telaChat(outroId, ctx) {
       areaProposta.replaceChildren(
         h("p", {}, `Você propôs: ${rotuloPrazo(p.ttl_minutos)}. Esperando ${conversa.perfil.nome_exibicao} confirmar.`),
         h("div", { class: "acoes" }, h("button", { type: "button", class: "secundario",
-          onclick: () => acao("/proposta", "DELETE") }, "Desistir")));
+          onclick: desistirOuRecusar }, "Desistir")));
     } else {
       areaProposta.replaceChildren(
         h("p", {}, `${conversa.perfil.nome_exibicao} propôs mudar para: ${rotuloPrazo(p.ttl_minutos)}. Vale para as próximas mensagens.`),
         h("div", { class: "acoes" },
-          h("button", { type: "button", class: "secundario", onclick: () => acao("/proposta", "DELETE") }, "Recusar"),
-          h("button", { type: "button", onclick: () => acao("/confirmar", "POST") }, "Aceitar")));
+          h("button", { type: "button", class: "secundario", onclick: desistirOuRecusar }, "Recusar"),
+          h("button", { type: "button", onclick: () => acao(
+            () => api(`/conversas/${outroId}/prazo/confirmar`, { metodo: "POST" }),
+            "Prazo novo combinado. Vale para as próximas mensagens.") }, "Aceitar")));
     }
   }
 

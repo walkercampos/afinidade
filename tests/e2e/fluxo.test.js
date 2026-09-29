@@ -46,6 +46,7 @@ async function cadastrarPorEmail(pagina, email, apelido) {
   await pagina.fill("#nascimento", "1991-02-03");
   await pagina.check("input[name=maior]");
   await pagina.check("input[name=consinto]");
+  await pagina.check("input[name=termos]");
   await pagina.click("button:has-text('Enviar código de confirmação')");
   await pagina.waitForSelector("#codigo");
   await pagina.fill("#codigo", (await emailPara(email)).codigo);
@@ -235,6 +236,7 @@ test("link do e-mail entra no app e some do histórico", async () => {
   await pagina.fill("#nascimento", "1991-02-03");
   await pagina.check("input[name=maior]");
   await pagina.check("input[name=consinto]");
+  await pagina.check("input[name=termos]");
   await pagina.click("button:has-text('Enviar código de confirmação')");
   await pagina.waitForSelector("#codigo");
   const { link } = await emailPara(email);
@@ -354,5 +356,45 @@ test("sem idade verificada, Descobrir leva para a verificação; recusada contin
   await esperarTitulo(pagina, "Confirme sua idade");
   await semRolagemHorizontal(pagina);
   assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test("termos: páginas públicas, aceite no cadastro e modo discreto que sobrevive ao pânico", async () => {
+  const pessoa = await novaPessoa(`disc_${sufixo}`, "outro", "outro");
+  const { pagina, ctx } = pessoa;
+
+  // As páginas legais abrem sem login, sem rolagem horizontal
+  const legal = await ctx.newPage();
+  for (const [url, titulo] of [["/termos.html", "Termos de uso"], ["/privacidade.html", "Política de privacidade"]]) {
+    await legal.goto(`${BASE}${url}`);
+    assert.equal(await legal.textContent("main h1"), titulo);
+    await semRolagemHorizontal(legal);
+  }
+  await legal.close();
+
+  // Aceitou os termos no cadastro: a conta registra a versão atual
+  const situacao = await (await ctx.request.get(`${BASE}/api/termos/situacao`)).json();
+  assert.equal(situacao.aceita, true);
+
+  // Modo discreto: nome e ícone neutros
+  await pagina.goto(`${BASE}/#/conta`);
+  await esperarTitulo(pagina, "Conta");
+  await pagina.check("input[name=discreto]");
+  await pagina.waitForFunction(() => document.title === "Notas");
+  assert.equal(await pagina.textContent(".marca"), "Notas");
+  assert.match(await pagina.getAttribute("link[rel=icon]", "href"), /icon-neutro/);
+
+  // Tema escuro manual
+  await pagina.click(".abas button:has-text('Escuro')");
+  assert.equal(await pagina.evaluate(() => document.documentElement.dataset.tema), "escuro");
+
+  // Depois do pânico, a próxima abertura já vem disfarçada (antes de qualquer login)
+  await pagina.route("https://www.google.com/**", (r) => r.fulfill({ body: "<title>Google</title>", contentType: "text/html" }));
+  await pagina.keyboard.press("Escape");
+  await pagina.waitForURL("https://www.google.com/**");
+  await pagina.goto(BASE);
+  await pagina.waitForSelector("text=Criar conta");
+  assert.equal(await pagina.title(), "Notas");
+  assert.deepEqual(pessoa.erros, []);
   await ctx.close();
 });
