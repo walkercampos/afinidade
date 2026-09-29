@@ -61,10 +61,10 @@ async def _limpeza_periodica(app: FastAPI) -> None:
 async def lifespan(app: FastAPI):
     cfg = config()
     app.state.pool = await criar_pool(cfg.database_url)
-    app.state.cifrador = Cifrador(cfg.chave_mensagens)
+    app.state.cifrador = Cifrador(cfg.chave_mensagens, anteriores=cfg.chaves_mensagens_anteriores)
     app.state.carteiro = criar_carteiro(cfg.email)
-    app.state.cifrador_email = contato.criar_cifrador(cfg.chave_email)
-    app.state.cifrador_encontros = encontros.criar_cifrador(cfg.chave_mensagens)
+    app.state.cifrador_email = contato.criar_cifrador(cfg.chave_email, cfg.chaves_email_anteriores)
+    app.state.cifrador_encontros = encontros.criar_cifrador(cfg.chave_mensagens, cfg.chaves_mensagens_anteriores)
     novas = await migrar(app.state.pool)
     if novas:
         log.info("Migrações aplicadas: %s", ", ".join(novas))

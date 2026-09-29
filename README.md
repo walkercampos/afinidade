@@ -2,8 +2,8 @@
 
 [![CI/CD](https://github.com/walkercampos/afinidade/actions/workflows/ci.yml/badge.svg)](https://github.com/walkercampos/afinidade/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/walkercampos/afinidade/actions/workflows/codeql.yml/badge.svg)](https://github.com/walkercampos/afinidade/actions/workflows/codeql.yml)
-![Versão](https://img.shields.io/badge/vers%C3%A3o-0.4.0-e8587e)
-![Cobertura mínima](https://img.shields.io/badge/cobertura%20m%C3%ADnima-90%25-9c7cf0)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-0.5.0-e8587e)
+![Cobertura mínima](https://img.shields.io/badge/cobertura%20m%C3%ADnima-95%25-9c7cf0)
 
 Rede social adulta (18+) de conexões por afinidade, com foco em diversidade de gênero, fetiches e
 **privacidade**. É gratuita para quem usa, anônima entre usuários e roda com custo zero de infraestrutura.
@@ -64,7 +64,7 @@ Limites dos planos gratuitos mudam; confira antes de lançar. O plano *free* do 
 
 ## Pipeline (GitHub Actions)
 
-`lint` (ruff + JS) · `testes` (Python + PostgreSQL, cobertura mínima 90%) · `navegador` (Playwright) ·
+`lint` (ruff + JS) · `testes` (Python + PostgreSQL, cobertura mínima 95%) · `navegador` (Playwright) ·
 `auditoria` (vulnerabilidades) → `imagem` (build Docker + smoke test) → `deploy` (só na `main`).
 Roda em todo push/PR e **todo dia às 06:17** para pegar vulnerabilidades novas. Detalhes em
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml).

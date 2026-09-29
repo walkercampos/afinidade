@@ -64,6 +64,7 @@ def _consulta(
     limite: int = 20,
     cursor: tuple | None = None,
     inatividade_dias: int | None = None,
+    com_foto: bool = False,
     excluir_curtidos: bool = True,
 ) -> tuple[str, list]:
     p = _Params()
@@ -99,6 +100,8 @@ def _consulta(
         filtros.append(f"NOT EXISTS (SELECT 1 FROM curtidas c WHERE c.de_id = {eu_id} AND c.para_id = p.conta_id)")
     if inatividade_dias is not None:
         filtros.append(f"p.ativo_em > now() - make_interval(days => {p(inatividade_dias, 'int')})")
+    if com_foto:
+        filtros.append("EXISTS (SELECT 1 FROM fotos f WHERE f.conta_id = p.conta_id)")
 
     k1, k2 = (f"n.{k}" if k else "0" for k in ORDENS[ordem])
     filtro_cursor = "true"
@@ -150,8 +153,12 @@ def _consulta(
     return sql, p.valores
 
 
-async def buscar_candidatos(con, eu, *, ordem: str, limite: int, cursor: tuple | None, inatividade_dias: int):
-    sql, params = _consulta(eu, ordem=ordem, limite=limite, cursor=cursor, inatividade_dias=inatividade_dias)
+async def buscar_candidatos(
+    con, eu, *, ordem: str, limite: int, cursor: tuple | None, inatividade_dias: int, com_foto: bool = False
+):
+    sql, params = _consulta(
+        eu, ordem=ordem, limite=limite, cursor=cursor, inatividade_dias=inatividade_dias, com_foto=com_foto
+    )
     return await con.fetch(sql, *params)
 
 

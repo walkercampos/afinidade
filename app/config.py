@@ -28,6 +28,9 @@ class Config:
     # Verificação de idade (Parte 3): exigida para descobrir, curtir e conversar, e o provedor.
     idade_obrigatoria: bool = False
     idade_provedor: str = "desativado"
+    # Rotação de chaves: as anteriores só servem para LER o que ainda não foi recifrado.
+    chaves_mensagens_anteriores: tuple[str, ...] = ()
+    chaves_email_anteriores: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -91,6 +94,10 @@ def _webauthn(producao: bool) -> tuple[str, tuple[str, ...]]:
     return rp_id, lista
 
 
+def _lista(valor: str) -> tuple[str, ...]:
+    return tuple(s.strip() for s in valor.split(",") if s.strip())
+
+
 @cache
 def config() -> Config:
     """Lida uma única vez, na primeira chamada (depois que o ambiente já foi configurado)."""
@@ -102,6 +109,8 @@ def config() -> Config:
         jwt_secret=_segredo("JWT_SECRET"),
         jwt_expira_min=int(e("JWT_EXPIRA_MIN", "1440")),
         chave_mensagens=_segredo("CHAVE_MENSAGENS"),
+        chaves_mensagens_anteriores=_lista(e("CHAVE_MENSAGENS_ANTERIORES", "")),
+        chaves_email_anteriores=_lista(e("CHAVE_EMAIL_ANTERIORES", "")),
         # Em produção: cookie Secure, HSTS e /docs desligado.
         producao=producao,
         limite_auth_por_min=int(e("LIMITE_AUTH_POR_MIN", "10")),

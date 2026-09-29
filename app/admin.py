@@ -3,6 +3,7 @@
 python -m app.admin moderador <apelido>        # dá o papel de moderador(a)
 python -m app.admin usuario <apelido>          # remove o papel
 python -m app.admin migrar                     # aplica migrações pendentes
+python -m app.admin recifrar                   # depois de trocar uma chave (docs/operacao.md)
 """
 
 import asyncio
@@ -37,6 +38,28 @@ async def _migrar() -> int:
     return 0
 
 
+async def _recifrar() -> int:
+    from . import contato, encontros, rotacao
+    from .cripto import Cifrador
+
+    cfg = config()
+    cifradores = {
+        "mensagens": Cifrador(cfg.chave_mensagens, anteriores=cfg.chaves_mensagens_anteriores),
+        "email": contato.criar_cifrador(cfg.chave_email, cfg.chaves_email_anteriores),
+        "encontros": encontros.criar_cifrador(cfg.chave_mensagens, cfg.chaves_mensagens_anteriores),
+    }
+    pool = await criar_pool(cfg.database_url)
+    try:
+        async with pool.acquire() as con:
+            feitos = await rotacao.recifrar(con, cifradores)
+    finally:
+        await pool.close()
+    for coluna, n in feitos.items():
+        print(f"{coluna}: {n} recifrado(s)")
+    print("Pronto. Rode de novo: quando tudo der 0, a chave antiga pode sair de *_ANTERIORES.")
+    return 0
+
+
 async def _avisar(handle: str, assunto: str, mensagem: str) -> int:
     cfg = config()
     pool = await criar_pool(cfg.database_url)
@@ -67,6 +90,8 @@ def main(argv: list[str]) -> int:
             return asyncio.run(_definir_papel(handle, papel))
         case ["migrar"]:
             return asyncio.run(_migrar())
+        case ["recifrar"]:
+            return asyncio.run(_recifrar())
         case ["avisar", handle, assunto, mensagem]:
             return asyncio.run(_avisar(handle, assunto, mensagem))
         case _:
