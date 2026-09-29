@@ -9,9 +9,13 @@ const ORDENS = [
   ["recentes", "Ativos recentemente"],
 ];
 let ordemAtual = "compatibilidade";
+// Filtros da descoberta (Parte 5); ficam enquanto o app está aberto.
+const filtros = { comFoto: false, ativosSemana: false };
 
 async function buscar(cursor) {
   const params = new URLSearchParams({ limite: "20", ordem: ordemAtual });
+  if (filtros.comFoto) params.set("com_foto", "true");
+  if (filtros.ativosSemana) params.set("ativos_dias", "7");
   if (cursor) params.set("cursor", cursor);
   const r = await fetch(`/api/descobrir?${params}`, { credentials: "same-origin" });
   if (r.status === 401) { irPara("entrar"); return null; }
@@ -75,8 +79,15 @@ export async function telaDescobrir(_parametro, ctx) {
   const seletor = h("select", { "aria-label": "Ordenar por", onchange: (ev) => { ordemAtual = ev.target.value; irPara("descobrir"); } },
     ORDENS.map(([v, t]) => h("option", { value: v, selected: v === ordemAtual }, t)));
 
+  const filtro = (chave, rotulo) => h("button", {
+    type: "button", class: "filtro", "aria-pressed": String(filtros[chave]),
+    onclick: () => { filtros[chave] = !filtros[chave]; irPara("descobrir"); },
+  }, rotulo);
+
   ctx.mostrar(
     h("div", { class: "titulo-com-acao" }, h("h1", {}, "Descobrir"), seletor),
+    h("div", { class: "filtros", role: "group", "aria-label": "Filtros" },
+      filtro("comFoto", "Só com foto"), filtro("ativosSemana", "Ativos esta semana")),
     lista,
     vazio,
     h("div", { class: "acoes" }, mais),

@@ -62,11 +62,20 @@ Com isso ninguém, nem por engano, publica código que não passou nos testes.
 | Variável | Pode trocar? |
 |---|---|
 | `JWT_SECRET` | Sim. Todos precisam entrar de novo. Faça isso se suspeitar de vazamento. |
-| `CHAVE_MENSAGENS` | **Não.** Mensagens e fotos antigas ficam ilegíveis. |
+| `CHAVE_MENSAGENS` | Sim, **com rotação** (abaixo). Trocar sem rotação deixa mensagens, fotos e encontros ilegíveis. |
 | `EMAIL_PEPPER` | **Não.** As pessoas deixam de ser encontradas pelo e-mail. |
-| `CHAVE_EMAIL` | **Não.** Os e-mails guardados ficam ilegíveis. |
+| `CHAVE_EMAIL` | Sim, **com rotação** (abaixo). Trocar sem rotação deixa os e-mails ilegíveis. |
 
-Guarde uma cópia das três chaves que não podem ser trocadas num cofre de senhas fora do Render.
+### Trocar uma chave de cifragem (rotação)
+
+1. Coloque a chave atual em `CHAVE_MENSAGENS_ANTERIORES` (ou `CHAVE_EMAIL_ANTERIORES`) e uma chave
+   nova em `CHAVE_MENSAGENS` (ou `CHAVE_EMAIL`). Faça o deploy: tudo novo sai cifrado com a nova, e o
+   antigo continua legível.
+2. Rode `python -m app.admin recifrar` (no shell do Render). Ele reescreve com a chave nova tudo o
+   que estava na antiga. Pode rodar com o app no ar.
+3. Rode de novo: quando tudo der **0**, remova a chave antiga de `*_ANTERIORES` e faça o deploy.
+
+Guarde uma cópia das chaves que não podem ser perdidas num cofre de senhas fora do Render.
 Sem elas, um backup do banco não serve para nada (o que também é uma proteção).
 
 ## Backups

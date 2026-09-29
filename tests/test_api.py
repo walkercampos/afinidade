@@ -193,3 +193,13 @@ def test_apelido_repetido(client, pessoa):
 
 def test_saude(client):
     assert client.get("/api/saude").json() == {"status": "ok", "versao": "dev", "lancamento": VERSAO}
+
+
+def test_security_txt(client):
+    r = client.get("/.well-known/security.txt")
+    assert r.status_code == 200
+    assert "Contact: https://github.com/walkercampos/afinidade/security/advisories/new" in r.text
+    from datetime import UTC, datetime
+
+    expira = datetime.fromisoformat(next(li for li in r.text.splitlines() if li.startswith("Expires:"))[9:])
+    assert expira > datetime.now(UTC)  # RFC 9116: arquivo vencido não vale; renove antes

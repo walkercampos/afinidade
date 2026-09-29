@@ -101,8 +101,12 @@ com CI verde. A `main` recebe versões estáveis.
 4. **Parte 10** ✅ ([termos e discrição](parte-10-termos-e-discricao.md)) — termos, consentimento LGPD e modo discrição (também bloqueia a abertura).
 5. **Parte 9** ✅ ([encontro seguro](parte-09-encontros.md)) — segurança física.
 6. **Parte 7** ✅ ([moderação](parte-07-moderacao.md)) — painel de moderação e moderação automática.
-7. **Partes 4, 5, 8, 11** — reforços incrementais.
-8. **Parte 12** — atravessa todas: cada parte já entra com seus testes; ao final o mínimo sobe para 95%.
+7. **Partes 4, 5, 8, 11** ✅ — reforços:
+   - rotação de chaves com recifragem (`python -m app.admin recifrar`);
+   - filtros "só com foto" e "ativos esta semana";
+   - revisão [OWASP Top 10](../seguranca-owasp.md) e `security.txt`;
+   - monitoramento e hibernação em [operacao.md](../operacao.md).
+8. **Parte 12** ✅ — cada parte entrou com seus testes; o mínimo de cobertura subiu para **95%**.
 
 ## 6. Custos (plano gratuito)
 

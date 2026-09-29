@@ -47,7 +47,17 @@ async def fotos_por_conta(con, eu: UUID, contas: list[UUID]) -> dict[UUID, list[
     return resultado
 
 
-async def _listar(con, sessao: Sessao, ordem: str, limite: int, cursor: str | None, response: Response):
+async def _listar(
+    con,
+    sessao: Sessao,
+    ordem: str,
+    limite: int,
+    cursor: str | None,
+    response: Response,
+    *,
+    com_foto: bool = False,
+    ativos_dias: int | None = None,
+):
     eu = sessao.conta_id
     # Primeiro o perfil (409 leva para "Crie seu perfil"), depois a idade (403 leva para a
     # verificação): quem acabou de criar a conta monta o perfil antes de verificar.
@@ -59,7 +69,14 @@ async def _listar(con, sessao: Sessao, ordem: str, limite: int, cursor: str | No
     except descoberta.CursorInvalido as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
     linhas = await descoberta.buscar_candidatos(
-        con, meu, ordem=ordem, limite=limite, cursor=posicao, inatividade_dias=config().inatividade_max_dias
+        con,
+        meu,
+        ordem=ordem,
+        limite=limite,
+        cursor=posicao,
+        # Filtro "ativos nos últimos N dias": nunca além do limite geral de inatividade.
+        inatividade_dias=min(ativos_dias or config().inatividade_max_dias, config().inatividade_max_dias),
+        com_foto=com_foto,
     )
     if len(linhas) == limite:
         response.headers[HEADER_CURSOR] = descoberta.codificar_cursor(linhas[-1], ordem)
@@ -83,6 +100,8 @@ async def descobrir(
     ordem: Ordem = "compatibilidade",
     limite: int = Query(20, ge=1, le=100),
     cursor: str | None = Query(None, max_length=300),
+    com_foto: bool = Query(False, description="Só perfis com pelo menos uma foto"),
+    ativos_dias: int | None = Query(None, ge=1, le=90, description="Só quem usou o app nos últimos N dias"),
     sessao: Sessao = Depends(sessao_atual),
     con=Depends(conexao),
 ):
@@ -92,7 +111,7 @@ async def descobrir(
     Paginação: se houver mais resultados, o header `X-Proximo-Cursor` traz o valor a
     enviar em `cursor` na próxima chamada.
     """
-    return await _listar(con, sessao, ordem, limite, cursor, response)
+    return await _listar(con, sessao, ordem, limite, cursor, response, com_foto=com_foto, ativos_dias=ativos_dias)
 
 
 @router.get("/afins", response_model=list[Candidato])

@@ -314,3 +314,10 @@ a.botao.secundario { background: var(--superficie-2); color: var(--texto); }
 .evidencias { padding-left: 18px; }
 .evidencias li { margin: 4px 0; overflow-wrap: anywhere; }
 .evidencias li.denunciado { color: var(--acento-texto); }
+
+/* ---------- filtros da descoberta ---------- */
+.filtros { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 14px; }
+button.filtro { min-height: 36px; padding: 6px 14px; font-size: .85rem; font-weight: 600;
+  background: var(--superficie); color: var(--texto); border: 1px solid var(--borda); }
+button.filtro:hover:not(:disabled) { background: var(--superficie-2); }
+button.filtro[aria-pressed=true] { background: var(--acento-suave); color: var(--acento-texto); border-color: transparent; }

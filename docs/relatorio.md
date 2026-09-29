@@ -132,7 +132,8 @@ vai para o ar sozinha.
 
 ## Qualidade: como sabemos que funciona
 
-- **154 testes automáticos do servidor**, cobrindo 98% do código (o mínimo exigido é 90%).
+- **257 testes automáticos do servidor**, cobrindo 97% do código (o mínimo exigido é 95%), mais testes do
+  front-end e testes que abrem o app num navegador de verdade.
 - **11 testes das funções do site** e **5 testes que abrem um navegador de verdade** numa tela de
   celular: cadastro pelo e-mail lendo o código da "caixa de entrada", ativar a biometria e entrar só
   com ela (com um celular simulado), o link do e-mail, fotos borradas e pedido de acesso, conexão,

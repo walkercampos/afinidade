@@ -1,0 +1,5 @@
+# Como relatar uma vulnerabilidade no Afinidade (RFC 9116)
+Contact: https://github.com/walkercampos/afinidade/security/advisories/new
+Policy: https://github.com/walkercampos/afinidade/blob/main/SECURITY.md
+Preferred-Languages: pt, en
+Expires: 2027-09-29T00:00:00.000Z

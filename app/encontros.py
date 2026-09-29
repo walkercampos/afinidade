@@ -32,8 +32,8 @@ class EncontroInvalido(Exception):
     """Mensagem pronta para a pessoa."""
 
 
-def criar_cifrador(segredo: str) -> Cifrador:
-    return Cifrador(segredo, dominio=DOMINIO)
+def criar_cifrador(segredo: str, anteriores: tuple[str, ...] = ()) -> Cifrador:
+    return Cifrador(segredo, dominio=DOMINIO, anteriores=anteriores)
 
 
 def _contexto(encontro_id: UUID, campo: bytes) -> bytes:
