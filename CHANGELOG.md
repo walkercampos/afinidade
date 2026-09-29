@@ -34,6 +34,9 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
 - Teste de contrato: toda chamada do front existe na API com o mesmo método.
 - Parte 9 do plano: encontro seguro. Registro cifrado de onde, quando e com quem; aviso ao contato
   de confiança; alerta por e-mail se o check-in não vier; atalhos para 190 e 180.
+- Parte 7 do plano: painel web de moderação (fila, evidências, banir, restaurar e aviso por
+  e-mail) e moderação automática local do conteúdo público dos perfis, com foco em sinais de
+  menor de idade e testes de falsos positivos.
 
 ### Mudado
 - Visual novo, no padrão dos apps mais usados no mundo: fonte do próprio aparelho, temas claro e

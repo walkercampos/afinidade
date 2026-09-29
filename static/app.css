@@ -302,3 +302,15 @@ a.botao.secundario { background: var(--superficie-2); color: var(--texto); }
 .situacao.confirmado_ok { color: var(--ok); }
 .situacao.alerta_enviado { color: var(--perigo); }
 .situacao.cancelado { color: var(--suave); }
+
+/* ---------- moderação ---------- */
+.caso .contador { font-size: .8rem; font-weight: 700; color: var(--suave); white-space: nowrap; }
+.perfil-moderado { background: var(--superficie-2); border-radius: 14px; padding: 10px 14px; margin: 12px 0; }
+.perfil-moderado p { margin: 4px 0; }
+.denuncias { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 8px; }
+.denuncia-item { border-left: 3px solid var(--borda); padding: 4px 0 4px 12px; }
+.denuncia-item.grave { border-left-color: var(--perigo); }
+.denuncia-item p { margin: 4px 0; overflow-wrap: anywhere; }
+.evidencias { padding-left: 18px; }
+.evidencias li { margin: 4px 0; overflow-wrap: anywhere; }
+.evidencias li.denunciado { color: var(--acento-texto); }

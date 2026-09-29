@@ -119,7 +119,7 @@ async def buscar_conta_por_email(con, email_hash: bytes):
 
 async def buscar_conta(con, conta_id: UUID):
     return await con.fetchrow(
-        "SELECT id, handle, webauthn_id, token_versao, situacao FROM contas WHERE id = $1", conta_id
+        "SELECT id, handle, webauthn_id, token_versao, situacao, papel FROM contas WHERE id = $1", conta_id
     )
 
 
