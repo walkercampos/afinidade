@@ -36,6 +36,7 @@ app/
 ├── mensagens.py     chat efêmero        ├── fotos.py      fotos protegidas
 ├── moderacao.py     denúncias e revisão ├── geo.py        geohash e distâncias
 ├── cripto.py        AES-GCM para dados em repouso
+├── observabilidade.py  logs JSON e id de requisição, sem dados pessoais
 ├── verificacao.py   código/link por e-mail (HMAC)  ├── contato.py  e-mail cifrado e avisos  ├── email.py   carteiros (arquivo, Resend, SMTP)
 ├── passkeys.py      biometria (WebAuthn)
 ├── ratelimit.py     limite de requisições sem guardar IPs

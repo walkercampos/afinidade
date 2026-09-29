@@ -121,3 +121,11 @@ test("barra de distância: ida e volta entre raio e posição, extremos e valore
   // Toda parada numérica é aceita pela API (5 a 500 km)
   assert.ok(PARADAS_DISTANCIA.every((km) => km === null || (km >= 5 && km <= 500)));
 });
+
+test("erro 500 mostra o código da requisição para o suporte", () => {
+  assert.equal(
+    mensagemDeErro({ detail: "Algo deu errado do nosso lado.", requisicao: "a1b2c3d4e5f60718" }),
+    "Algo deu errado do nosso lado. (código a1b2c3d4e5f60718)",
+  );
+  assert.equal(mensagemDeErro({ detail: "Perfil ainda não criado" }), "Perfil ainda não criado");
+});

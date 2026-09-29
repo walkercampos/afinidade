@@ -53,6 +53,8 @@ export function descreverDistancia(km) {
 /** Texto amigável a partir do corpo de erro do FastAPI. */
 export function mensagemDeErro(dados) {
   const d = dados?.detail;
+  // Erro 500: mostra o código da requisição para a pessoa informar ao suporte
+  if (typeof d === "string" && dados?.requisicao) return `${d} (código ${dados.requisicao})`;
   if (typeof d === "string") return d;
   if (Array.isArray(d) && d.length) return d.map((e) => String(e.msg).replace(/^Value error, /, "")).join(" · ");
   return "Algo deu errado. Tente de novo.";

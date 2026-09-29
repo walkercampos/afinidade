@@ -1,0 +1,19 @@
+name: Ideia ou funcionalidade
+description: Sugira algo novo para o app
+labels: [funcionalidade]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qual problema isso resolve
+    validations: { required: true }
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Como você imagina que funcione
+    validations: { required: true }
+  - type: textarea
+    id: privacidade
+    attributes:
+      label: Impacto na privacidade
+      description: Precisa guardar algum dado novo? Alguém passaria a ver algo que hoje não vê?
