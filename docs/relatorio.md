@@ -154,11 +154,11 @@ vai para o ar sozinha.
 
 ## Visual
 
-O app tem uma identidade própria, chamada **Véu Luminoso**: fundo noturno (discreto à noite e em
-lugares públicos), títulos numa serifa itálica elegante e um único tom de rosa reservado para o que é
-"revelado" (a afinidade, os interesses em comum, o botão principal). Ao fundo, uma grade quase invisível
-lembra os quadrados de ~5 km da localização. A fonte fica guardada no próprio app, sem depender de
-serviços de fora. O manifesto e a prancha que inspiraram o visual estão em [design/](design/).
+O visual segue os padrões dos apps mais usados no mundo: a fonte do próprio celular, temas **claro e
+escuro** que acompanham a configuração do aparelho, cartões limpos com cantos arredondados, botões em
+formato de pílula e uma barra de abas com ícones na parte de baixo. Um único tom de rosa marca o que
+importa (o botão principal, a afinidade, os interesses em comum). Nada é baixado de serviços de fora.
+Detalhes em [design/sistema-visual.md](design/sistema-visual.md).
 
 ## Para quem vai programar
 
