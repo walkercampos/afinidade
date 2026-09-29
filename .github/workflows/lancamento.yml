@@ -1,11 +1,14 @@
-# Lançamento de versão: ao enviar uma tag vX.Y.Z, cria o Release no GitHub com as notas do
-# CHANGELOG.md. A tag precisa bater com app/__init__.py (VERSAO). Passo a passo em
-# docs/operacao.md.
+# Lançamento de versão: cria o Release no GitHub com as notas do CHANGELOG.md.
+# Dois jeitos de disparar (passo a passo em docs/operacao.md):
+#   - botão "Run workflow" na aba Actions, com a main selecionada: cria a tag vX.Y.Z a partir de
+#     VERSAO em app/__init__.py;
+#   - enviar uma tag vX.Y.Z pelo git (ela precisa bater com VERSAO).
 name: Lançamento
 
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -18,15 +21,23 @@ jobs:
       - uses: actions/checkout@v5
       - name: Conferir a versão
         run: |
-          versao="${GITHUB_REF_NAME#v}"
           no_codigo=$(python3 -c 'import re,pathlib; print(re.search(r"VERSAO = \"(.+)\"", pathlib.Path("app/__init__.py").read_text())[1])')
-          if [ "$versao" != "$no_codigo" ]; then
-            echo "::error::A tag ($GITHUB_REF_NAME) não bate com VERSAO em app/__init__.py ($no_codigo)."
-            exit 1
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$GITHUB_REF_NAME" != "main" ]; then
+              echo "::error::Lance a partir da main (selecione a branch main no botão Run workflow)."
+              exit 1
+            fi
+            echo "TAG=v$no_codigo" >> "$GITHUB_ENV"
+          else
+            if [ "${GITHUB_REF_NAME#v}" != "$no_codigo" ]; then
+              echo "::error::A tag ($GITHUB_REF_NAME) não bate com VERSAO em app/__init__.py ($no_codigo)."
+              exit 1
+            fi
+            echo "TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
           fi
       - name: Extrair as notas do CHANGELOG
         run: |
-          versao="${GITHUB_REF_NAME#v}"
+          versao="${TAG#v}"
           awk -v v="$versao" '
             $0 ~ "^## \\[" v "\\]" { dentro = 1; next }
             dentro && /^## \[/     { exit }
@@ -41,4 +52,14 @@ jobs:
       - name: Criar o Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "Afinidade $GITHUB_REF_NAME" --notes-file notas.md --verify-tag
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::error::O Release $TAG já existe. Suba a versão em app/__init__.py antes de lançar de novo."
+            exit 1
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            # Cria a tag no commit exato que está sendo lançado
+            gh release create "$TAG" --title "Afinidade $TAG" --notes-file notas.md --target "$GITHUB_SHA"
+          else
+            gh release create "$TAG" --title "Afinidade $TAG" --notes-file notas.md --verify-tag
+          fi
