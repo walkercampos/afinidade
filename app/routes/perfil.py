@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from .. import geo
+from .. import geo, moderacao, moderacao_automatica
 from .. import repository as repo
 from ..catalogo import Catalogo
 from ..db import conexao
@@ -52,6 +52,9 @@ async def salvar_perfil(dados: PerfilEntrada, eu: UUID = Depends(conta_atual), c
         tags_curioso=[tags[s] for s in t.curioso],
         tags_limite=[tags[s] for s in t.limite_absoluto],
     )
+    # Moderação automática do que é público (nome e bio): sinais graves vão para a revisão.
+    for sinal in moderacao_automatica.analisar(dados.nome_exibicao, dados.bio):
+        await moderacao.sinalizar_automaticamente(con, eu, sinal.motivo, sinal.trecho)
     return await ler_perfil(eu, con)
 
 

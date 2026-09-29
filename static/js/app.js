@@ -12,6 +12,7 @@ import { telaDescobrir } from "./telas/descobrir.js";
 import { telaEncontros } from "./telas/encontros.js";
 import { telaEntrar } from "./telas/entrar.js";
 import { telaIdade, telaIdadeSimulada } from "./telas/idade.js";
+import { telaModeracao } from "./telas/moderacao.js";
 import { telaPerfil } from "./telas/perfil.js";
 import { telaTermos } from "./telas/termos.js";
 import { telaVerificar } from "./telas/verificar.js";
@@ -31,6 +32,7 @@ registrarRota("conta", telaConta);
 registrarRota("idade", telaIdade);
 registrarRota("termos", telaTermos);
 registrarRota("encontros", telaEncontros);
+registrarRota("moderacao", telaModeracao);
 registrarRota("idade-simulada", telaIdadeSimulada, { comMenu: false });
 
 window.addEventListener("unhandledrejection", (ev) => {

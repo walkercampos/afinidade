@@ -53,6 +53,25 @@ async def denunciar(
         await _avaliar_revisao(con, denunciado, motivo, limiar)
 
 
+async def sinalizar_automaticamente(con, conta: UUID, motivo: str, trecho: str) -> bool:
+    """Denúncia do SISTEMA (sem denunciante) a partir da moderação automática. Uma por conta e
+    motivo enquanto estiver aberta. Motivos graves deixam a conta em revisão na hora."""
+    async with con.transaction():
+        criada = await con.fetchval(
+            """INSERT INTO denuncias (denunciante_id, denunciado_id, motivo, detalhes)
+               SELECT NULL, $1, $2, $3
+               WHERE NOT EXISTS (SELECT 1 FROM denuncias WHERE denunciado_id = $1 AND motivo = $2
+                                 AND denunciante_id IS NULL AND status = 'aberta')
+               RETURNING true""",
+            conta,
+            motivo,
+            f"Sinalização automática no perfil: “{trecho[:900]}”",
+        )
+        if criada:
+            await _avaliar_revisao(con, conta, motivo, limiar=10**6)
+    return bool(criada)
+
+
 async def _avaliar_revisao(con, conta: UUID, motivo: str, limiar: int) -> None:
     if motivo not in MOTIVOS_GRAVES:
         denunciantes = await con.fetchval(

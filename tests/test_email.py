@@ -39,6 +39,7 @@ def test_conta_mostra_so_o_email_mascarado(client):
     assert client.get("/api/conta", headers=bearer(r)).json() == {
         "handle": "mascara_1",
         "email": "j****@exemplo.com",
+        "moderador": False,
     }
 
 

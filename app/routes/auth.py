@@ -153,7 +153,11 @@ async def minha_conta(request: Request, eu: UUID = Depends(conta_atual), con=Dep
     """Dados da própria conta. O e-mail vem mascarado: basta para a pessoa reconhecê-lo."""
     conta = await repo.buscar_conta(con, eu)
     email = await contato.email_da_conta(con, request.app.state.cifrador_email, eu)
-    return MinhaConta(handle=conta["handle"], email=contato.mascarar(email) if email else None)
+    return MinhaConta(
+        handle=conta["handle"],
+        email=contato.mascarar(email) if email else None,
+        moderador=conta["papel"] == "moderador",
+    )
 
 
 @router.get("/conta/preferencias", response_model=Preferencias)
