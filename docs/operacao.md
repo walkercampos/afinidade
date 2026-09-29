@@ -34,9 +34,10 @@ Com isso ninguém, nem por engano, publica código que não passou nos testes.
 2. Troque `VERSAO` em `app/__init__.py`, `version` em `pyproject.toml` e o selo de versão no README (um teste garante que as
    duas batem e que o CHANGELOG tem a seção).
 3. Abra o pull request `develop` → `main` e faça o merge com a pipeline verde.
-4. Crie a tag na `main`: `git tag vX.Y.Z && git push origin vX.Y.Z`
-   (ou no GitHub: Releases → Draft a new release → Choose a tag → `vX.Y.Z`).
-5. O workflow **Lançamento** confere a versão e cria o Release com as notas do CHANGELOG.
+4. No GitHub: **Actions → Lançamento → Run workflow**, com a branch `main` selecionada.
+   (Alternativa pelo terminal: `git tag vX.Y.Z && git push origin vX.Y.Z`.)
+5. O workflow confere a versão, cria a tag `vX.Y.Z` e o Release com as notas do CHANGELOG.
+   Se o Release daquela versão já existir, ele para e avisa.
 
 ## Deploy e como voltar atrás
 

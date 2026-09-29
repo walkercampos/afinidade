@@ -23,7 +23,7 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
 - Logs estruturados em JSON em produção, sem IP, conta, e-mail ou ids de perfil.
 - Versão do app em `/api/saude` (`lancamento`).
 - Análise de segurança do código (CodeQL), modelos de issue e de pull request, CODEOWNERS,
-  lançamento de versões por tag e guia de operação.
+  lançamento de versões pelo botão "Run workflow" (ou por tag) e guia de operação.
 - Documentação: plano de execução (Parte 1), telas do app e localização.
 
 ### Corrigido
