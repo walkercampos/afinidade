@@ -316,6 +316,22 @@ class Mensagem(BaseModel):
     expira_em: datetime | None
 
 
+class SituacaoIdade(BaseModel):
+    obrigatoria: bool  # exigida para descobrir, curtir e conversar
+    verificada: bool
+    verificada_em: datetime | None
+    pendente: bool  # há uma tentativa em andamento
+    disponivel: bool  # há um provedor configurado
+
+
+class IdadeIniciada(BaseModel):
+    url: str  # para onde a pessoa vai fazer a verificação
+
+
+class ResultadoSimulado(BaseModel):
+    aprovar: bool
+
+
 class PropostaPrazo(BaseModel):
     ttl_minutos: int | None
     minha: bool  # fui eu que propus (então espero a outra pessoa confirmar)

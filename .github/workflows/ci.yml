@@ -133,6 +133,10 @@ jobs:
           WEBAUTHN_ORIGENS: http://localhost:8000
           EMAIL_PROVEDOR: arquivo   # os testes leem o código de acesso nesta pasta
           EMAIL_PASTA: /tmp/emails-e2e
+          # Como em produção: sem idade verificada não se descobre, curte nem conversa.
+          # Os testes passam pelo fluxo de verificação com o provedor simulado.
+          IDADE_OBRIGATORIA: "true"
+          IDADE_PROVEDOR: simulado
         run: |
           export JWT_SECRET="$(openssl rand -hex 32)" CHAVE_MENSAGENS="$(openssl rand -hex 32)" EMAIL_PEPPER="$(openssl rand -hex 32)" CHAVE_EMAIL="$(openssl rand -hex 32)"
           nohup uvicorn app.main:app --port 8000 > uvicorn.log 2>&1 &
@@ -172,6 +176,7 @@ jobs:
             -e AMBIENTE=producao -e PORT=8000 \
             -e WEBAUTHN_RP_ID=localhost -e WEBAUTHN_ORIGENS=http://localhost:8000 \
             -e EMAIL_PEPPER="$(openssl rand -hex 32)" -e CHAVE_EMAIL="$(openssl rand -hex 32)" -e EMAIL_PROVEDOR=resend -e RESEND_API_KEY=nao-usada-no-smoke-test \
+            -e IDADE_OBRIGATORIA=false \
             afinidade:${{ github.sha }}
           for i in $(seq 1 30); do
             if curl -fsS http://localhost:8000/api/saude; then echo; break; fi
@@ -181,6 +186,23 @@ jobs:
           curl -fsSI http://localhost:8000/ | grep -i "content-security-policy"
           # Em produção a documentação da API fica desligada
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/docs)" = "404"
+      - name: Em produção, sem provedor de idade, o app se recusa a subir
+        run: |
+          # Mesmas variáveis, mas com a verificação de idade obrigatória (o padrão) e nenhum
+          # provedor: o contêiner tem de sair com erro e explicar o motivo.
+          set +e
+          saida=$(timeout 60 docker run --rm --network host \
+            -e DATABASE_URL=postgresql://postgres:postgres@localhost:5432/app \
+            -e JWT_SECRET="$(openssl rand -hex 32)" -e CHAVE_MENSAGENS="$(openssl rand -hex 32)" \
+            -e AMBIENTE=producao -e PORT=8001 \
+            -e WEBAUTHN_RP_ID=localhost -e WEBAUTHN_ORIGENS=http://localhost:8001 \
+            -e EMAIL_PEPPER="$(openssl rand -hex 32)" -e CHAVE_EMAIL="$(openssl rand -hex 32)" -e EMAIL_PROVEDOR=resend -e RESEND_API_KEY=x \
+            afinidade:${{ github.sha }} 2>&1)
+          codigo=$?
+          set -e
+          echo "$saida" | tail -5
+          test "$codigo" -ne 0 && test "$codigo" -ne 124
+          echo "$saida" | grep -q "verificação de idade é obrigatória em produção"
       - name: Logs do contêiner (em caso de falha)
         if: failure()
         run: docker logs app

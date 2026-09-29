@@ -9,6 +9,7 @@ export class ErroApi extends Error {
 
 // Todo pedido que altera dados leva X-CSRF (o servidor recusa sem ele quando usa o cookie).
 const CABECALHOS = { "X-CSRF": "1" };
+const IDADE_PENDENTE = "Verificação de idade pendente"; // igual a app/idade.py DETALHE_PENDENTE
 
 async function tratar(r, caminho) {
   if (r.status === 401 && !caminho.startsWith("/auth/")) {
@@ -17,6 +18,11 @@ async function tratar(r, caminho) {
   }
   if (r.status === 204) return null;
   const dados = await r.json().catch(() => ({}));
+  // Verificação de idade pendente (Parte 3): leva para a tela que explica e inicia a verificação.
+  if (r.status === 403 && dados.detail === IDADE_PENDENTE) {
+    irPara("idade");
+    throw new ErroApi(403, dados.detail);
+  }
   if (!r.ok) throw new ErroApi(r.status, mensagemDeErro(dados));
   return dados;
 }

@@ -10,7 +10,7 @@ from ..db import conexao
 from ..deps import exigir_perfil, exigir_perfil_visivel
 from ..matcher import PerfilMatch, calcular_match, score_mutuo, similaridade, tags_mesmo_nivel
 from ..schemas import Candidato, Compatibilidade, Foto, Ordem, PerfilPublico, ResultadoCurtida, Simulacao
-from ..security import conta_ativa, conta_atual
+from ..security import Sessao, conta_atual, conta_liberada, exigir_liberada, sessao_atual
 
 router = APIRouter(tags=["descoberta"])
 
@@ -47,8 +47,12 @@ async def fotos_por_conta(con, eu: UUID, contas: list[UUID]) -> dict[UUID, list[
     return resultado
 
 
-async def _listar(con, eu: UUID, ordem: str, limite: int, cursor: str | None, response: Response):
+async def _listar(con, sessao: Sessao, ordem: str, limite: int, cursor: str | None, response: Response):
+    eu = sessao.conta_id
+    # Primeiro o perfil (409 leva para "Crie seu perfil"), depois a idade (403 leva para a
+    # verificação): quem acabou de criar a conta monta o perfil antes de verificar.
     meu = await exigir_perfil(con, eu)
+    exigir_liberada(sessao)
     await repo.marcar_atividade(con, eu)
     try:
         posicao = descoberta.decodificar_cursor(cursor) if cursor else None
@@ -79,7 +83,7 @@ async def descobrir(
     ordem: Ordem = "compatibilidade",
     limite: int = Query(20, ge=1, le=100),
     cursor: str | None = Query(None, max_length=300),
-    eu: UUID = Depends(conta_atual),
+    sessao: Sessao = Depends(sessao_atual),
     con=Depends(conexao),
 ):
     """Perfis compatíveis (gênero mútuo, sem conflito de limites, dentro da distância).
@@ -88,7 +92,7 @@ async def descobrir(
     Paginação: se houver mais resultados, o header `X-Proximo-Cursor` traz o valor a
     enviar em `cursor` na próxima chamada.
     """
-    return await _listar(con, eu, ordem, limite, cursor, response)
+    return await _listar(con, sessao, ordem, limite, cursor, response)
 
 
 @router.get("/afins", response_model=list[Candidato])
@@ -96,15 +100,15 @@ async def afins(
     response: Response,
     limite: int = Query(20, ge=1, le=100),
     cursor: str | None = Query(None, max_length=300),
-    eu: UUID = Depends(conta_atual),
+    sessao: Sessao = Depends(sessao_atual),
     con=Depends(conexao),
 ):
     """Pessoas com as mesmas preferências que você (atalho para /descobrir?ordem=afinidade)."""
-    return await _listar(con, eu, "afinidade", limite, cursor, response)
+    return await _listar(con, sessao, "afinidade", limite, cursor, response)
 
 
 @router.get("/perfis/{alvo}", response_model=Candidato)
-async def ver_perfil(alvo: UUID, eu: UUID = Depends(conta_atual), con=Depends(conexao)):
+async def ver_perfil(alvo: UUID, eu: UUID = Depends(conta_liberada), con=Depends(conexao)):
     meu = await exigir_perfil(con, eu)
     outro = await exigir_perfil_visivel(con, eu, alvo)
     cat = await Catalogo.para(con, [meu, outro])
@@ -118,7 +122,7 @@ async def ver_perfil(alvo: UUID, eu: UUID = Depends(conta_atual), con=Depends(co
 
 
 @router.post("/perfis/{alvo}/curtir", response_model=ResultadoCurtida)
-async def curtir(alvo: UUID, eu: UUID = Depends(conta_ativa), con=Depends(conexao)):
+async def curtir(alvo: UUID, eu: UUID = Depends(conta_liberada), con=Depends(conexao)):
     meu = await exigir_perfil(con, eu)
     outro = await exigir_perfil_visivel(con, eu, alvo)
     # Só dá para curtir quem passa por TODOS os filtros (gênero, limites, distância):

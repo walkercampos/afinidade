@@ -193,3 +193,6 @@ details.prazo summary { cursor: pointer; color: var(--suave); font-size: .9rem; 
 .linha-prazo { display: flex; gap: 8px; flex-wrap: wrap; }
 .linha-prazo select { flex: 1 1 180px; }
 .proposta-prazo p { margin: 8px 0; }
+
+.lista-simples { margin: 8px 0 12px; padding-left: 20px; }
+.lista-simples li { margin: 6px 0; }

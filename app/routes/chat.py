@@ -10,7 +10,7 @@ from ..db import conexao
 from ..deps import cifrador
 from ..ratelimit import exigir_limite
 from ..schemas import Conversa, Mensagem, NovaMensagem, NovoPrazo, PrazoConversa
-from ..security import conta_ativa, conta_atual
+from ..security import conta_ativa, conta_atual, conta_liberada
 from ..tempo_real import central
 
 router = APIRouter(tags=["chat"])
@@ -62,7 +62,7 @@ async def ler(
 
 @router.post("/conversas/{outro}/mensagens", response_model=Mensagem, status_code=status.HTTP_201_CREATED)
 async def enviar(
-    outro: UUID, dados: NovaMensagem, eu: UUID = Depends(conta_ativa), con=Depends(conexao), cif=Depends(cifrador)
+    outro: UUID, dados: NovaMensagem, eu: UUID = Depends(conta_liberada), con=Depends(conexao), cif=Depends(cifrador)
 ):
     exigir_limite("mensagem", config().limite_mensagens_por_min, str(eu), anonimizar=False)
     await _exigir_conexao(con, eu, outro)

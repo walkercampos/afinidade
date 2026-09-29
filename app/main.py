@@ -12,7 +12,7 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
-from . import VERSAO, contato, mensagens, verificacao
+from . import VERSAO, contato, idade, mensagens, verificacao
 from . import passkeys as dominio_passkeys
 from .config import config
 from .cripto import Cifrador
@@ -20,6 +20,7 @@ from .db import criar_pool, migrar
 from .email import criar_carteiro
 from .observabilidade import configurar_logs, erro_inesperado, registrar_requisicao
 from .routes import auth, chat, descoberta, fotos, moderacao, passkeys, perfil, saude, tempo_real
+from .routes import idade as rotas_idade
 
 log = logging.getLogger("matchmaking")
 DIR_STATIC = Path(__file__).resolve().parent.parent / "static"
@@ -46,6 +47,7 @@ async def _limpeza_periodica(app: FastAPI) -> None:
                 await mensagens.apagar_expiradas(con)
                 await dominio_passkeys.apagar_desafios_expirados(con)
                 await verificacao.apagar_expiradas(con)
+                await idade.apagar_antigas(con)
         except Exception:  # a limpeza nunca deve derrubar a API; tenta de novo no próximo ciclo
             log.exception("Falha na limpeza periódica")
         await asyncio.sleep(INTERVALO_LIMPEZA_S)
@@ -72,6 +74,7 @@ async def lifespan(app: FastAPI):
 def criar_app() -> FastAPI:
     cfg = config()
     configurar_logs(cfg.producao)
+    idade.validar_configuracao(cfg.producao, cfg.idade_obrigatoria, cfg.idade_provedor)
     # Em produção a documentação interativa fica desligada: menos superfície exposta.
     docs = {} if not cfg.producao else {"docs_url": None, "redoc_url": None, "openapi_url": None}
     app = FastAPI(title="Afinidade API", version=VERSAO, lifespan=lifespan, **docs)
@@ -102,7 +105,7 @@ def criar_app() -> FastAPI:
     app.add_exception_handler(Exception, erro_inesperado)
 
     api = APIRouter(prefix="/api")
-    for modulo in (saude, auth, passkeys, perfil, descoberta, fotos, chat, moderacao, tempo_real):
+    for modulo in (saude, auth, passkeys, perfil, rotas_idade, descoberta, fotos, chat, moderacao, tempo_real):
         api.include_router(modulo.router)
     app.include_router(api)
     # Front-end estático no mesmo domínio: sem CORS, e o cookie SameSite=Strict funciona.

@@ -39,3 +39,10 @@ services:
       # ... e a origem completa (ex.: https://afinidade.onrender.com). Várias: separe por vírgula.
       - key: WEBAUTHN_ORIGENS
         sync: false
+      # Verificação de idade (ECA Digital). Obrigatória por lei antes de abrir ao público.
+      # Enquanto nenhum provedor real estiver contratado e configurado, o app só sobe com
+      # IDADE_OBRIGATORIA=false (fase fechada de testes). Ver docs/plano/parte-03-verificacao-de-idade.md.
+      - key: IDADE_OBRIGATORIA
+        value: "false"
+      - key: IDADE_PROVEDOR
+        value: desativado

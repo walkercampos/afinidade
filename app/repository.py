@@ -5,6 +5,7 @@ from uuid import UUID
 
 import asyncpg
 
+from . import idade
 from .matcher import PerfilMatch
 
 _CATALOGOS = {"generos", "tags"}
@@ -177,10 +178,19 @@ _SEM_BLOQUEIO = """
 """
 
 
+def conta_visivel(alias: str) -> str:
+    """Condição SQL de "esta conta pode aparecer para outras pessoas": ativa e, quando a
+    verificação de idade é obrigatória, com a idade verificada."""
+    condicao = f"{alias}.situacao = 'ativa'"
+    if idade.obrigatoria():
+        condicao += f" AND {alias}.idade_verificada_em IS NOT NULL"
+    return condicao
+
+
 async def buscar_perfil_visivel(con, observador: UUID, alvo: UUID):
     """Perfil de `alvo`, se estiver visível, com conta ativa e sem bloqueio em nenhuma direção."""
     return await con.fetchrow(
-        f"""SELECT p.* FROM perfis p JOIN contas ct ON ct.id = p.conta_id AND ct.situacao = 'ativa'
+        f"""SELECT p.* FROM perfis p JOIN contas ct ON ct.id = p.conta_id AND {conta_visivel("ct")}
             WHERE p.conta_id = $2 AND p.visivel AND {_SEM_BLOQUEIO}""",
         observador,
         alvo,
