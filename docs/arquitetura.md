@@ -47,6 +47,9 @@ Ordens disponíveis em `/api/descobrir?ordem=`: `compatibilidade` (padrão), `af
 | `fotos` | versões nítida e borrada, **cifradas**, e hash SHA-256 |
 | `acessos_fotos` | pedidos de acesso: pendente, aprovado ou negado (só o dono muda) |
 | `denuncias`, `moderacao_log` | denúncias (evidências cifradas) e trilha de auditoria das decisões |
+| `verificacoes_idade` | tentativas de verificação de idade (só o resultado; nada do documento) |
+| `conversas_config`, `propostas_ttl` | prazo das mensagens acordado por conversa e propostas de mudança |
+| `encontros` | encontro compartilhado com contato de confiança (detalhes e contato **cifrados**) |
 | `generos`, `tags` | catálogos |
 
 Tudo que pertence a uma conta tem `ON DELETE CASCADE`: excluir a conta apaga tudo na hora.

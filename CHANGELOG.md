@@ -12,6 +12,12 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
 
 ## [Não lançado]
 
+### Adicionado
+- Parte 2 do plano (modelo de dados): colunas e tabelas para verificação de idade, prazo das
+  mensagens por conversa (com proposta e confirmação), encontros com contato de confiança,
+  versão dos termos aceitos e modo discrição. Só acrescenta; o comportamento atual não muda.
+- Teste que impede qualquer tabela nova de "prender" uma conta excluída.
+
 ## [0.4.0] - 2026-09-29
 
 ### Adicionado
