@@ -1,6 +1,6 @@
 [project]
 name = "afinidade"
-version = "0.4.0"
+version = "0.5.0"
 description = "Rede social adulta (18+) de conexões por afinidade, anônima e de custo zero"
 requires-python = ">=3.11"
 
@@ -25,7 +25,7 @@ source = ["app"]
 
 [tool.coverage.report]
 # O CI falha se a cobertura cair abaixo disso: código novo precisa vir com teste.
-fail_under = 90
+fail_under = 95
 show_missing = true
 skip_covered = true
 

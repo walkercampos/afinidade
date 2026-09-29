@@ -12,11 +12,17 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
 
 ## [Não lançado]
 
+## [0.5.0] - 2026-09-29
+
 ### Adicionado
 - Parte 2 do plano (modelo de dados): colunas e tabelas para verificação de idade, prazo das
   mensagens por conversa (com proposta e confirmação), encontros com contato de confiança,
   versão dos termos aceitos e modo discrição. Só acrescenta; o comportamento atual não muda.
 - Teste que impede qualquer tabela nova de "prender" uma conta excluída.
+- Partes 4, 5, 8 e 12 do plano: rotação de chaves de cifragem com recifragem
+  (`python -m app.admin recifrar`); filtros "só com foto" e "ativos esta semana" na descoberta;
+  revisão OWASP Top 10 (`docs/seguranca-owasp.md`) e `/.well-known/security.txt`; cobertura
+  mínima de testes sobe para 95%.
 - Parte 6 do plano: prazo das mensagens combinado por conversa (de 5 minutos a 6 meses, ou
   nunca). Uma pessoa propõe, a outra confirma, e o novo prazo vale só para as mensagens enviadas
   depois. Mensagem não lida não expira.
@@ -89,7 +95,8 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
 - API de matchmaking (FastAPI + PostgreSQL) com o algoritmo de três camadas: gênero, limites
   absolutos e afinidade ponderada.
 
-[Não lançado]: https://github.com/walkercampos/afinidade/compare/v0.4.0...HEAD
+[Não lançado]: https://github.com/walkercampos/afinidade/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/walkercampos/afinidade/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/walkercampos/afinidade/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/walkercampos/afinidade/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/walkercampos/afinidade/compare/v0.1.0...v0.2.0

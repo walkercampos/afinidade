@@ -13,8 +13,8 @@ from .email import Mensagem
 DOMINIO = b"matchmaking/email/v1"
 
 
-def criar_cifrador(chave: str) -> Cifrador:
-    return Cifrador(chave, DOMINIO)
+def criar_cifrador(chave: str, anteriores: tuple[str, ...] = ()) -> Cifrador:
+    return Cifrador(chave, DOMINIO, anteriores)
 
 
 def _contexto(email_hash: bytes) -> bytes:

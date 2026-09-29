@@ -77,7 +77,7 @@ Exemplo: "favoritar perfis".
 
 ## Testes (obrigatórios)
 
-Todo PR vem com testes, e o CI bloqueia o merge se a cobertura cair abaixo de 90%.
+Todo PR vem com testes, e o CI bloqueia o merge se a cobertura cair abaixo de 95%.
 
 | Tipo | Arquivo | Quando usar |
 |---|---|---|
