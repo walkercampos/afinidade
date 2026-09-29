@@ -289,3 +289,16 @@ body.documento main { padding-bottom: 32px; }
 /* ---------- modo discreto ---------- */
 [data-discreto] .selo { display: none; }
 [data-discreto] .marca::before { background: #8e8e99; }
+
+/* ---------- encontro seguro ---------- */
+a.botao { display: inline-flex; align-items: center; justify-content: center; flex: 1 1 160px; min-height: 48px;
+  padding: 12px 18px; border-radius: var(--pilula); font-weight: 700; text-decoration: none; text-align: center; }
+a.botao.perigo { background: var(--perigo); color: #fff; }
+a.botao.secundario { background: var(--superficie-2); color: var(--texto); }
+.emergencia { border-color: rgb(220 38 38 / .35); }
+.linha-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 12px; }
+.situacao { font-weight: 700; font-size: .9rem; }
+.situacao.agendado { color: var(--acento-texto); }
+.situacao.confirmado_ok { color: var(--ok); }
+.situacao.alerta_enviado { color: var(--perigo); }
+.situacao.cancelado { color: var(--suave); }

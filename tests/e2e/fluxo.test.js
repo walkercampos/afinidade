@@ -398,3 +398,35 @@ test("termos: páginas públicas, aceite no cadastro e modo discreto que sobrevi
   assert.deepEqual(pessoa.erros, []);
   await ctx.close();
 });
+
+test("encontro seguro: registrar a partir do chat, emergência à mão e check-in", async () => {
+  const ana = await novaPessoa(`ea_${sufixo}`, "agenero", "genero-fluido");
+  const bia = await novaPessoa(`eb_${sufixo}`, "genero-fluido", "agenero");
+  for (const [quem, alvo] of [[ana, `eb_${sufixo}`], [bia, `ea_${sufixo}`]]) {
+    await quem.pagina.goto(`${BASE}/#/descobrir`);
+    await quem.pagina.locator(".cartao", { hasText: alvo }).locator("button:has-text('Curtir')").click();
+  }
+  await bia.pagina.waitForSelector("text=É uma conexão");
+
+  await ana.pagina.goto(`${BASE}/#/conexoes`);
+  await ana.pagina.locator(".cartao", { hasText: `eb_${sufixo}` }).locator("button:has-text('Conversar')").click();
+  await ana.pagina.click("button:has-text('Encontro seguro')");
+  await esperarTitulo(ana.pagina, "Encontro seguro");
+  assert.equal(await ana.pagina.getAttribute("a[href='tel:190']", "href"), "tel:190");
+  // A conexão da conversa já vem escolhida
+  assert.equal(await ana.pagina.inputValue("#com"), await ana.pagina.evaluate(() => location.hash.split("/")[2]));
+
+  await ana.pagina.fill("#local", "Café Central, Rua das Flores 100");
+  await ana.pagina.fill("#contato_email", `confianca_${sufixo}@teste.invalid`);
+  await ana.pagina.fill("#como_te_conhecem", "Ana, sua amiga");
+  await ana.pagina.click("button:has-text('Registrar encontro')");
+  await ana.pagina.waitForSelector("text=Aguardando seu check-in");
+  await semRolagemHorizontal(ana.pagina);
+  await panicoNaoCobreBotoes(ana.pagina);
+  await ana.pagina.click("button:has-text('Estou bem')");
+  await ana.pagina.waitForSelector("text=Check-in feito: tudo bem");
+
+  assert.deepEqual([...ana.erros, ...bia.erros], []);
+  await ana.ctx.close();
+  await bia.ctx.close();
+});
