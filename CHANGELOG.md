@@ -23,6 +23,11 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
 - Avisos em tempo real por WebSocket (nova mensagem, mensagem lida, proposta de prazo), sem
   nenhum conteúdo no aviso.
 
+- Parte 3 do plano: verificação de idade. Sem idade verificada (quando obrigatória), não se
+  descobre, curte nem conversa, e o perfil não aparece para ninguém. Só o resultado é guardado;
+  nenhuma foto, documento ou CPF. Provedor simulado para desenvolvimento e testes; em produção o
+  app não sobe com a verificação obrigatória e sem provedor real.
+
 ### Mudado
 - O prazo padrão das mensagens passa de 5 minutos para **24 horas depois de lidas**. Mensagens
   já enviadas mantêm os 5 minutos.

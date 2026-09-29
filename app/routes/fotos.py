@@ -9,7 +9,7 @@ from ..db import conexao
 from ..deps import cifrador, exigir_perfil_visivel
 from ..ratelimit import exigir_limite
 from ..schemas import Foto, RespostaSolicitacao, SolicitacaoAcesso
-from ..security import conta_ativa, conta_atual
+from ..security import conta_atual, conta_liberada
 from .descoberta import fotos_por_conta
 
 router = APIRouter(tags=["fotos"])
@@ -77,13 +77,13 @@ async def imagem(foto_id: UUID, eu: UUID = Depends(conta_atual), con=Depends(con
 
 
 @router.get("/perfis/{alvo}/fotos", response_model=list[Foto])
-async def fotos_do_perfil(alvo: UUID, eu: UUID = Depends(conta_atual), con=Depends(conexao)):
+async def fotos_do_perfil(alvo: UUID, eu: UUID = Depends(conta_liberada), con=Depends(conexao)):
     await exigir_perfil_visivel(con, eu, alvo)
     return (await fotos_por_conta(con, eu, [alvo]))[alvo]
 
 
 @router.post("/perfis/{alvo}/fotos/solicitar")
-async def solicitar_acesso(alvo: UUID, eu: UUID = Depends(conta_ativa), con=Depends(conexao)):
+async def solicitar_acesso(alvo: UUID, eu: UUID = Depends(conta_liberada), con=Depends(conexao)):
     """Pede ao dono para ver as fotos nítidas. Só o dono pode aprovar."""
     exigir_limite("pedido-foto", 30, str(eu), janela_s=86_400, anonimizar=False)
     await exigir_perfil_visivel(con, eu, alvo)

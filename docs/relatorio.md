@@ -13,6 +13,8 @@ para manter no ar.
    digital, o rosto ou o PIN do celular. Se não quiser inventar um apelido, o app gera um
    (tipo `anon_k3v9x2mq`). Não pedimos telefone, nome real nem foto. A pessoa confirma que tem
    18 anos ou mais e que aceita o uso dos dados sobre sexualidade para encontrar compatibilidades.
+   Antes de ver perfis, curtir ou conversar, **confirma a idade** com uma empresa especializada
+   (selfie com prova de vida). O app recebe só o resultado; nenhuma foto ou documento fica aqui.
 2. **Monta o perfil:** um nome de exibição (pode ser inventado), o próprio gênero, os gêneros que busca e,
    para cada prática da lista, marca **Quero**, **Curioso(a)** ou **Limite** (nunca).
 3. Opcionalmente, **ativa a localização aproximada** e escolhe a distância máxima numa barra deslizante (de 5 a 500 km, ou qualquer distância).
@@ -53,6 +55,7 @@ Essa conta é feita dentro do banco de dados. Por isso o app continua rápido me
 | E-mail | Pedido para criar a conta, recuperar o acesso e avisos importantes. Fica guardado **criptografado** (com uma chave que não fica no banco) e nunca aparece para ninguém: nem os moderadores veem o endereço quando mandam um aviso |
 | Telefone, nome real, senha | **Não pedimos** |
 | Data de nascimento | Usada só para confirmar os 18 anos e **descartada** |
+| Verificação de idade | Só "verificada em tal data, por tal empresa"; selfie, documento e CPF **nunca** ficam aqui |
 | Endereço de internet (IP) | **Não é gravado** |
 | Localização | Vira um quadrado de ~5 km. **A posição exata é jogada fora.** Os outros veem só "até N km" |
 | Fotos | O app **apaga os dados escondidos** na foto (como o GPS de onde foi tirada) e guarda tudo **cifrado** |

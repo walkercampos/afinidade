@@ -25,6 +25,9 @@ class Config:
     email_pepper: str
     chave_email: str
     email: "ConfigEmail"
+    # Verificação de idade (Parte 3): exigida para descobrir, curtir e conversar, e o provedor.
+    idade_obrigatoria: bool = False
+    idade_provedor: str = "desativado"
 
 
 @dataclass(frozen=True)
@@ -112,4 +115,8 @@ def config() -> Config:
         email_pepper=_segredo("EMAIL_PEPPER"),
         chave_email=_segredo("CHAVE_EMAIL"),
         email=_email(producao, origens),
+        # Padrão: obrigatória em produção. Sem provedor real configurado, o app não sobe
+        # (ver idade.validar_configuracao).
+        idade_obrigatoria=e("IDADE_OBRIGATORIA", "true" if producao else "false").lower() == "true",
+        idade_provedor=e("IDADE_PROVEDOR", "desativado" if producao else "simulado"),
     )

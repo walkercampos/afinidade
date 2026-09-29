@@ -6,6 +6,7 @@ import jwt
 from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from . import idade
 from .config import config
 from .ratelimit import exigir_limite
 
@@ -53,6 +54,7 @@ class Sessao:
     conta_id: UUID
     papel: str  # 'usuario' | 'moderador'
     situacao: str  # 'ativa' | 'em_revisao' (banida nunca chega aqui)
+    idade_verificada: bool = False
 
 
 _bearer = HTTPBearer(auto_error=False)
@@ -86,10 +88,13 @@ async def validar_token(pool, token: str) -> Sessao | None:
         return None
     # A versão do token permite "sair de todos os dispositivos" e invalida na hora tokens de
     # contas excluídas ou banidas, em vez de esperar a expiração.
-    conta = await pool.fetchrow("SELECT token_versao, papel, situacao FROM contas WHERE id = $1", conta_id)
+    conta = await pool.fetchrow(
+        "SELECT token_versao, papel, situacao, idade_verificada_em IS NOT NULL AS idade_ok FROM contas WHERE id = $1",
+        conta_id,
+    )
     if conta is None or conta["token_versao"] != payload["ver"] or conta["situacao"] == "banida":
         return None
-    return Sessao(conta_id, conta["papel"], conta["situacao"])
+    return Sessao(conta_id, conta["papel"], conta["situacao"], conta["idade_ok"])
 
 
 async def conta_atual(sessao: Sessao = Depends(sessao_atual)) -> UUID:
@@ -102,6 +107,20 @@ async def conta_ativa(sessao: Sessao = Depends(sessao_atual)) -> UUID:
     if sessao.situacao != "ativa":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Conta em revisão pela moderação")
     return sessao.conta_id
+
+
+def exigir_liberada(sessao: Sessao) -> UUID:
+    """Conta ativa e, quando a verificação de idade é obrigatória, com a idade verificada."""
+    if sessao.situacao != "ativa":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Conta em revisão pela moderação")
+    if not sessao.idade_verificada and idade.obrigatoria():
+        raise HTTPException(status.HTTP_403_FORBIDDEN, idade.DETALHE_PENDENTE)
+    return sessao.conta_id
+
+
+async def conta_liberada(sessao: Sessao = Depends(sessao_atual)) -> UUID:
+    """Para ver perfis, curtir e conversar (Parte 3)."""
+    return exigir_liberada(sessao)
 
 
 async def moderador(sessao: Sessao = Depends(sessao_atual)) -> UUID:

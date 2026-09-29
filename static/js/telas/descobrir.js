@@ -16,6 +16,11 @@ async function buscar(cursor) {
   const r = await fetch(`/api/descobrir?${params}`, { credentials: "same-origin" });
   if (r.status === 401) { irPara("entrar"); return null; }
   if (r.status === 409) { irPara("perfil"); return null; }
+  if (r.status === 403) {
+    const { detail } = await r.json().catch(() => ({}));
+    if (detail === "Verificação de idade pendente") { irPara("idade"); return null; }
+    throw new Error(detail ?? "Acesso negado.");
+  }
   if (!r.ok) throw new Error("Não foi possível carregar os perfis.");
   return { itens: await r.json(), proximo: r.headers.get("X-Proximo-Cursor") };
 }

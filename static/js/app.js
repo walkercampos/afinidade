@@ -9,6 +9,7 @@ import { telaConexoes } from "./telas/conexoes.js";
 import { telaConta } from "./telas/conta.js";
 import { telaDescobrir } from "./telas/descobrir.js";
 import { telaEntrar } from "./telas/entrar.js";
+import { telaIdade, telaIdadeSimulada } from "./telas/idade.js";
 import { telaPerfil } from "./telas/perfil.js";
 import { telaVerificar } from "./telas/verificar.js";
 
@@ -22,6 +23,8 @@ registrarRota("conexoes", telaConexoes);
 registrarRota("chat", telaChat);
 registrarRota("perfil", telaPerfil);
 registrarRota("conta", telaConta);
+registrarRota("idade", telaIdade);
+registrarRota("idade-simulada", telaIdadeSimulada, { comMenu: false });
 
 window.addEventListener("unhandledrejection", (ev) => {
   if (ev.reason instanceof ErroApi) {

@@ -69,7 +69,20 @@ async function novaPessoa(apelido, genero, busca) {
   await pagina.click(".tag-linha:has-text('Bondage') button[data-nivel=quero]");
   await pagina.click("form button[type=submit]");
   await esperarTitulo(pagina, "Seu perfil");
+  await verificarIdade(pagina);
+  await pagina.goto(`${BASE}/#/perfil`);
+  await esperarTitulo(pagina, "Seu perfil");
   return { ctx, pagina, erros };
+}
+
+/** Verificação de idade pelo provedor simulado (o servidor de testes roda com ela obrigatória). */
+async function verificarIdade(pagina) {
+  await pagina.goto(`${BASE}/#/idade`);
+  await esperarTitulo(pagina, "Confirme sua idade");
+  await pagina.click("button:has-text('Verificar minha idade')");
+  await esperarTitulo(pagina, "Provedor simulado");
+  await pagina.click("button:has-text('Aprovar')");
+  await esperarTitulo(pagina, "Idade verificada");
 }
 
 /** Espera o título EXATO (":has-text" casaria "Crie seu perfil" com "Seu perfil"). */
@@ -311,4 +324,35 @@ test("prazo das mensagens: uma pessoa propõe, a outra recebe o aviso na hora e 
   assert.deepEqual([...ana.erros, ...bia.erros], []);
   await ana.ctx.close();
   await bia.ctx.close();
+});
+
+test("sem idade verificada, Descobrir leva para a verificação; recusada continua pendente", async () => {
+  const ctx = await navegador.newContext({ viewport: { width: 360, height: 780 } });
+  const pagina = await ctx.newPage();
+  const erros = [];
+  pagina.on("pageerror", (e) => erros.push(String(e)));
+  await pagina.goto(`${BASE}/#/entrar`);
+  await cadastrarPorEmail(pagina, `idade_${sufixo}@teste.invalid`, `idade_${sufixo}`);
+  await esperarTitulo(pagina, "Conta criada. Agora, a biometria");
+  await pagina.click("button:has-text('Agora não')");
+  await esperarTitulo(pagina, "Crie seu perfil");
+  // Sem perfil, Descobrir leva primeiro para o perfil; com perfil, para a verificação de idade
+  await pagina.goto(`${BASE}/#/descobrir`);
+  await esperarTitulo(pagina, "Crie seu perfil");
+  await pagina.fill("#nome", "Ida");
+  await pagina.selectOption("#genero", "outro");
+  await pagina.check("input[name=busca_por][value=outro]");
+  await pagina.click("form button[type=submit]");
+  await esperarTitulo(pagina, "Seu perfil");
+
+  await pagina.goto(`${BASE}/#/descobrir`);
+  await esperarTitulo(pagina, "Confirme sua idade");
+  assert.ok(await pagina.isVisible("text=Nenhuma foto, documento ou CPF fica guardado aqui"));
+  await pagina.click("button:has-text('Verificar minha idade')");
+  await esperarTitulo(pagina, "Provedor simulado");
+  await pagina.click("button:has-text('Recusar')");
+  await esperarTitulo(pagina, "Confirme sua idade");
+  await semRolagemHorizontal(pagina);
+  assert.deepEqual(erros, []);
+  await ctx.close();
 });

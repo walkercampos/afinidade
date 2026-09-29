@@ -13,6 +13,8 @@ import json
 from datetime import datetime
 from uuid import UUID
 
+from .repository import conta_visivel
+
 # ordem -> (critério principal, desempate); depois sempre atividade recente e id.
 # Os nomes de coluna vêm só desta tabela, nunca do usuário. None = só atividade recente.
 ORDENS = {
@@ -74,7 +76,7 @@ def _consulta(
     filtros = [
         "p.visivel",
         f"p.conta_id <> {eu_id}",
-        "ct.situacao = 'ativa'",
+        conta_visivel("ct"),
         # Camada 1: eu busco o gênero da pessoa e ela busca o meu.
         f"p.genero_id = ANY({p(eu['busca_por'], 'smallint[]')})",
         # OPERATOR(pg_catalog.@>): com a extensão intarray instalada, `@>` puro fica ambíguo
