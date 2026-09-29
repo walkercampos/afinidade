@@ -55,7 +55,7 @@ diretamente com a pessoa mantenedora. Respondemos em até 7 dias.
 ## Limitações conhecidas
 
 - O chat é cifrado no servidor, **não ponta a ponta**: quem controla o servidor poderia ler as mensagens
-  durante os 5 minutos de vida delas.
+  durante o prazo de vida delas (combinado na conversa; padrão 24 h depois de lidas).
 - Linhas apagadas do PostgreSQL somem fisicamente só depois do *vacuum*; backups do provedor podem guardar
   cópias por um tempo. Por isso o conteúdo é cifrado.
 - O rate limit é em memória: vale por instância e zera quando ela reinicia.

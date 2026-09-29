@@ -15,41 +15,44 @@ def test_mensagem_cifrada_no_banco(conexao_entre, db):
     assert b"segredo-muito-especifico" not in blob and len(blob) > 20
 
 
-def test_some_cinco_minutos_depois_de_lida(conexao_entre, db):
+def test_some_24_horas_depois_de_lida_por_padrao(conexao_entre, db):
     a, b = conexao_entre()
     enviada = a.post(f"/api/conversas/{b.id}/mensagens", json={"texto": "oi"}).json()
     assert enviada["lida_em"] is None and enviada["expira_em"] is None
+    assert enviada["ttl_minutos"] == 1440
 
-    # Ler marca como lida e inicia os 5 minutos
+    # Ler marca como lida e inicia as 24 horas
     [recebida] = b.get(f"/api/conversas/{a.id}/mensagens").json()
     lida = datetime.fromisoformat(recebida["lida_em"])
-    assert datetime.fromisoformat(recebida["expira_em"]) - lida == timedelta(minutes=5)
+    assert datetime.fromisoformat(recebida["expira_em"]) - lida == timedelta(hours=24)
     # Quem enviou também vê o prazo (e deve apagar da tela no mesmo instante)
     assert a.get(f"/api/conversas/{b.id}/mensagens").json()[0]["expira_em"] == recebida["expira_em"]
 
-    # Passados 5 minutos, some da API na hora, mesmo antes da limpeza física...
-    db.execute("UPDATE mensagens SET lida_em = now() - interval '5 minutes 1 second' WHERE id = $1", enviada["id"])
+    # Passado o prazo, some da API na hora, mesmo antes da limpeza física...
+    db.execute("UPDATE mensagens SET lida_em = now() - interval '24 hours 1 second' WHERE id = $1", enviada["id"])
     assert a.get(f"/api/conversas/{b.id}/mensagens").json() == []
     assert b.get(f"/api/conversas/{a.id}/mensagens").json() == []
     # ... e a limpeza periódica remove do banco
-    from app import mensagens
+    assert limpar() >= 1
+    assert db.fetchval("SELECT count(*) FROM mensagens WHERE id = $1", enviada["id"]) == 0
 
-    db.execute("SELECT 1")  # conexão viva
+
+def limpar() -> int:
     import asyncio
 
     import asyncpg
 
+    from app import mensagens
     from tests.conftest import URL
 
-    async def limpar():
+    async def rodar():
         con = await asyncpg.connect(URL)
         try:
-            return await mensagens.apagar_expiradas(con, 30)
+            return await mensagens.apagar_expiradas(con)
         finally:
             await con.close()
 
-    assert asyncio.run(limpar()) >= 1
-    assert db.fetchval("SELECT count(*) FROM mensagens WHERE id = $1", enviada["id"]) == 0
+    return asyncio.run(rodar())
 
 
 def test_conversas_e_novas_mensagens(conexao_entre):

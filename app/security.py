@@ -67,25 +67,28 @@ async def sessao_atual(request: Request, cred: HTTPAuthorizationCredentials | No
         token = request.cookies.get(COOKIE_SESSAO)
         if token and request.method not in _METODOS_SEGUROS and request.headers.get(HEADER_CSRF) != "1":
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Header anti-CSRF ausente")
-    if not token:
+    sessao = await validar_token(request.app.state.pool, token) if token else None
+    if sessao is None:
         raise nao_autorizado
+    exigir_limite("api", config().limite_api_por_min, str(sessao.conta_id), anonimizar=False)
+    return sessao
 
-    cfg = config()
+
+async def validar_token(pool, token: str) -> Sessao | None:
+    """Sessão do token, ou None se for inválido, expirado, revogado ou de conta banida.
+    Usado pelas rotas HTTP e pelo WebSocket."""
     try:
-        payload = jwt.decode(token, cfg.jwt_secret, algorithms=["HS256"], options={"require": ["exp", "sub", "ver"]})
+        payload = jwt.decode(
+            token, config().jwt_secret, algorithms=["HS256"], options={"require": ["exp", "sub", "ver"]}
+        )
         conta_id = UUID(payload["sub"])
     except (jwt.PyJWTError, ValueError):
-        raise nao_autorizado from None
-
+        return None
     # A versão do token permite "sair de todos os dispositivos" e invalida na hora tokens de
     # contas excluídas ou banidas, em vez de esperar a expiração.
-    conta = await request.app.state.pool.fetchrow(
-        "SELECT token_versao, papel, situacao FROM contas WHERE id = $1", conta_id
-    )
+    conta = await pool.fetchrow("SELECT token_versao, papel, situacao FROM contas WHERE id = $1", conta_id)
     if conta is None or conta["token_versao"] != payload["ver"] or conta["situacao"] == "banida":
-        raise nao_autorizado
-
-    exigir_limite("api", cfg.limite_api_por_min, str(conta_id), anonimizar=False)
+        return None
     return Sessao(conta_id, conta["papel"], conta["situacao"])
 
 

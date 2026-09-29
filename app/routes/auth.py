@@ -17,6 +17,7 @@ from ..email import FalhaNoEnvio, mensagem_de_acesso
 from ..ratelimit import exigir_limite, ip_do_cliente
 from ..schemas import Cadastro, ConfirmarCodigo, ConfirmarLink, MinhaConta, PedidoEntrar, Token, VerificacaoEnviada
 from ..security import apagar_cookie_sessao, conta_atual, iniciar_sessao
+from ..tempo_real import central
 
 router = APIRouter(tags=["autenticação"])
 log = logging.getLogger("matchmaking.auth")
@@ -134,6 +135,7 @@ async def link(dados: ConfirmarLink, request: Request, response: Response, con=D
 async def sair(response: Response, eu: UUID = Depends(conta_atual), con=Depends(conexao)):
     """Encerra a sessão em todos os dispositivos (também usado pelo botão de pânico)."""
     await repo.invalidar_sessoes(con, eu)
+    await central.derrubar(eu)
     apagar_cookie_sessao(response, config())
 
 
@@ -148,4 +150,5 @@ async def minha_conta(request: Request, eu: UUID = Depends(conta_atual), con=Dep
 @router.delete("/conta", status_code=status.HTTP_204_NO_CONTENT)
 async def excluir_conta(response: Response, eu: UUID = Depends(conta_atual), con=Depends(conexao)):
     await repo.excluir_conta(con, eu)
+    await central.derrubar(eu)
     apagar_cookie_sessao(response, config())

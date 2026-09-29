@@ -21,10 +21,37 @@ export function msAte(iso, agora = Date.now()) {
   return Date.parse(iso) - agora;
 }
 
-/** "4:05" a partir de milissegundos; nunca negativo. */
+/** Tempo restante legível: "4:05" (menos de 1 h), "23 h 05 min" (menos de 1 dia), "3 d 4 h". */
 export function formatarRestante(ms) {
   const s = Math.max(0, Math.ceil(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  if (s < 3600) return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const min = Math.ceil(s / 60);
+  if (min < 24 * 60) return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")} min`;
+  const horas = Math.floor(min / 60);
+  return `${Math.floor(horas / 24)} d ${horas % 24} h`;
+}
+
+/** Nome de um prazo das mensagens (minutos depois da leitura; null = nunca). */
+export function rotuloPrazo(minutos) {
+  if (minutos == null) return "nunca";
+  const unidades = [[43200, "mês", "meses"], [10080, "semana", "semanas"], [1440, "dia", "dias"], [60, "hora", "horas"], [1, "minuto", "minutos"]];
+  // 24 h e 14 dias soam melhor assim do que "1 dia" e "2 semanas"
+  if (minutos === 1440) return "24 horas";
+  if (minutos === 20160) return "14 dias";
+  for (const [tamanho, um, varios] of unidades) {
+    if (minutos % tamanho === 0) {
+      const n = minutos / tamanho;
+      return `${n} ${n === 1 ? um : varios}`;
+    }
+  }
+  return `${minutos} minutos`;
+}
+
+/** Frase do cabeçalho da conversa. */
+export function descreverPrazo(minutos) {
+  return minutos == null
+    ? "Mensagens cifradas no servidor. Nesta conversa, as mensagens não somem."
+    : `Mensagens cifradas no servidor e apagadas ${rotuloPrazo(minutos)} depois de lidas.`;
 }
 
 /** Paradas da barra de distância: passos pequenos perto, maiores longe; a última é "qualquer". */

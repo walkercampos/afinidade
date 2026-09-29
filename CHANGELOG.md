@@ -17,6 +17,18 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
   mensagens por conversa (com proposta e confirmação), encontros com contato de confiança,
   versão dos termos aceitos e modo discrição. Só acrescenta; o comportamento atual não muda.
 - Teste que impede qualquer tabela nova de "prender" uma conta excluída.
+- Parte 6 do plano: prazo das mensagens combinado por conversa (de 5 minutos a 6 meses, ou
+  nunca). Uma pessoa propõe, a outra confirma, e o novo prazo vale só para as mensagens enviadas
+  depois. Mensagem não lida não expira.
+- Avisos em tempo real por WebSocket (nova mensagem, mensagem lida, proposta de prazo), sem
+  nenhum conteúdo no aviso.
+
+### Mudado
+- O prazo padrão das mensagens passa de 5 minutos para **24 horas depois de lidas**. Mensagens
+  já enviadas mantêm os 5 minutos.
+
+### Removido
+- `MENSAGENS_RETENCAO_DIAS`: mensagens não lidas não são mais apagadas por tempo (regra do plano).
 
 ## [0.4.0] - 2026-09-29
 

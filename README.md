@@ -29,7 +29,7 @@ Rede social adulta (18+) de conexões por afinidade, com foco em diversidade de 
 | Gostos parecidos | Similaridade de preferências (0–100%) para ver quem curte as mesmas coisas. |
 | Localização aproximada | Só um quadrado de ~5 km; distância exibida em faixas ("até 10 km"). |
 | Fotos protegidas | Metadados/GPS removidos; quem não foi autorizado recebe só uma versão borrada gerada no servidor. |
-| Chat efêmero | Só entre conexões; cifrado no banco; cada mensagem some 5 minutos depois de lida. |
+| Chat efêmero | Só entre conexões; cifrado no banco; cada mensagem some um tempo depois de lida (24 h por padrão, de 5 minutos a 6 meses ou nunca, combinado entre as duas pessoas); avisos em tempo real. |
 | Botão de pânico | Botão vermelho ou tecla ESC: apaga a tela, limpa o navegador, encerra a sessão e abre o Google. |
 | Segurança da comunidade | Bloqueio, denúncia (com evidências opcionais), ocultação automática e fila de moderação. |
 

@@ -43,7 +43,7 @@ Ordens disponíveis em `/api/descobrir?ordem=`: `compatibilidade` (padrão), `af
 | `passkeys`, `desafios_webauthn` | chaves **públicas** das passkeys e desafios de uso único (5 min); ver [autenticacao.md](autenticacao.md) |
 | `perfis` | nome de exibição, bio, gênero, `busca_por[]`, `tags_quero[]`, `tags_curioso[]`, `tags_limite[]`, célula geohash |
 | `curtidas`, `bloqueios` | relações entre contas (curtida recíproca = conexão) |
-| `mensagens` | texto **cifrado** (AES-256-GCM), `lida_em` (some 5 min depois) |
+| `mensagens` | texto **cifrado** (AES-256-GCM), `lida_em` e `ttl_minutos`: some em `lida_em + prazo` (padrão 24 h; não lida não expira) |
 | `fotos` | versões nítida e borrada, **cifradas**, e hash SHA-256 |
 | `acessos_fotos` | pedidos de acesso: pendente, aprovado ou negado (só o dono muda) |
 | `denuncias`, `moderacao_log` | denúncias (evidências cifradas) e trilha de auditoria das decisões |
@@ -85,3 +85,14 @@ CSP estrita (`script-src 'self'`), sem nenhum recurso de terceiros, `Cache-Contr
   deixam a conta **em revisão**: ela some da descoberta e não pode curtir nem mandar mensagens.
 - Moderadores (`make moderador apelido=...`) usam `/api/moderacao/fila` e
   `/api/moderacao/contas/{id}/decisao` (`banir` ou `restaurar`). Banir derruba todas as sessões.
+
+## Tempo real
+
+`/api/ws` (WebSocket) avisa "algo novo na conversa X" (`mensagem`, `lida`, `prazo`). O aviso
+**nunca** leva conteúdo: a tela busca pela API, que aplica todas as regras. A sessão é o mesmo
+cookie do site, a origem é conferida (contra sequestro do canal por outro site) e revalidada a cada
+60 s; sair ou excluir a conta derruba o canal na hora. Limite de 5 aparelhos por conta. Com o canal
+aberto, a busca periódica da conversa cai de 3 s para 20 s (reserva).
+
+Limitação: quem está conectado fica na memória do processo. Com várias réplicas, troque por
+LISTEN/NOTIFY do PostgreSQL; até lá, a busca periódica garante que nada se perde.

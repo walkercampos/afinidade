@@ -1,12 +1,17 @@
-// Chat efêmero: cada mensagem some 5 minutos depois de lida, para os dois lados.
-// O servidor para de devolvê-la no instante em que expira; aqui ela também sai da tela.
+// Chat efêmero: cada mensagem some um tempo depois de lida (24 h por padrão), para os dois
+// lados. O prazo é combinado entre as duas pessoas: uma propõe, a outra confirma, e o novo prazo
+// vale para as mensagens enviadas a partir daí. O servidor para de devolver a mensagem no
+// instante em que expira; aqui ela também sai da tela.
 import { api, carregarCatalogo } from "../api.js";
 import { acoesDeSeguranca } from "../componentes.js";
-import { formulario, h } from "../dom.js";
+import { avisar, formulario, h } from "../dom.js";
 import { aoSairDaTela, irPara } from "../roteador.js";
-import { formatarRestante, msAte } from "../util.js";
+import { conectarAvisos } from "../tempo_real.js";
+import { descreverPrazo, formatarRestante, msAte, rotuloPrazo } from "../util.js";
 
-const INTERVALO_MS = 3000;
+// Com o canal em tempo real aberto, a busca periódica vira só uma reserva.
+const INTERVALO_SEM_AVISOS_MS = 3000;
+const INTERVALO_COM_AVISOS_MS = 20000;
 
 export async function telaChat(outroId, ctx) {
   if (!outroId) return irPara("conexoes");
@@ -15,25 +20,27 @@ export async function telaChat(outroId, ctx) {
   if (!conversa) return irPara("conexoes");
 
   const lista = h("ol", { class: "mensagens", "aria-live": "polite" });
-  const vazio = h("p", { class: "vazio" }, "Nenhuma mensagem. As mensagens somem 5 minutos depois de lidas.");
-  const exibidas = new Map(); // id -> { el, contador, expiraEm }
+  const vazio = h("p", { class: "vazio" }, "Nenhuma mensagem ainda.");
+  const exibidas = new Map(); // id -> { el, contador, expiraEm, nuncaExpira }
 
   function desenhar(m) {
     let item = exibidas.get(m.id);
     if (!item) {
       const contador = h("small", { class: "expira" });
       const el = h("li", { class: m.minha ? "msg minha" : "msg" }, h("p", {}, m.texto), contador);
-      item = { el, contador, expiraEm: null };
+      item = { el, contador, expiraEm: null, nuncaExpira: false };
       exibidas.set(m.id, item);
       lista.append(el);
     }
     item.expiraEm = m.expira_em;
+    item.nuncaExpira = m.ttl_minutos === null;
   }
 
   function atualizarRelogios() {
     for (const [id, item] of exibidas) {
       if (!item.expiraEm) {
-        item.contador.textContent = item.el.classList.contains("minha") ? "não lida" : "";
+        const minha = item.el.classList.contains("minha");
+        item.contador.textContent = item.nuncaExpira ? "não some" : minha ? "não lida" : "";
         continue;
       }
       const resta = msAte(item.expiraEm);
@@ -49,6 +56,54 @@ export async function telaChat(outroId, ctx) {
     for (const [id, item] of exibidas) if (!ids.has(id)) { item.el.remove(); exibidas.delete(id); }
     mensagens.forEach(desenhar);
     atualizarRelogios();
+    mostrarPrazo(await api(`/conversas/${outroId}/prazo`));
+  }
+
+  // ----- prazo da conversa -----
+  const textoPrazo = h("p", { class: "nota" });
+  const areaProposta = h("div", { class: "proposta-prazo", "aria-live": "polite" });
+  const escolha = h("select", { "aria-label": "Novo prazo das mensagens" });
+  const propor = h("button", { type: "button", class: "secundario" }, "Propor");
+  let assinatura = ""; // evita redesenhar (e perder o foco do seletor) quando nada mudou
+
+  async function acao(caminho, metodo, corpo) {
+    try {
+      const s = await api(`/conversas/${outroId}/prazo${caminho}`, { metodo, corpo });
+      mostrarPrazo(s ?? await api(`/conversas/${outroId}/prazo`));
+      if (caminho === "/confirmar") avisar("Prazo novo combinado. Vale para as próximas mensagens.");
+      else if (caminho === "") avisar("Proposta enviada");
+    } catch (e) {
+      avisar(e.message);
+    }
+  }
+
+  propor.addEventListener("click", () => {
+    const valor = escolha.value === "nunca" ? null : Number(escolha.value);
+    acao("", "POST", { ttl_minutos: valor });
+  });
+
+  function mostrarPrazo(s) {
+    const nova = JSON.stringify(s);
+    if (nova === assinatura) return;
+    assinatura = nova;
+    textoPrazo.textContent = descreverPrazo(s.ttl_minutos);
+    escolha.replaceChildren(...s.opcoes.filter((o) => o !== s.ttl_minutos).map((o) =>
+      h("option", { value: o ?? "nunca" }, o == null ? "Nunca somem" : `${rotuloPrazo(o)} depois de lidas`)));
+    const p = s.proposta;
+    if (!p) {
+      areaProposta.replaceChildren(h("div", { class: "linha-prazo" }, escolha, propor));
+    } else if (p.minha) {
+      areaProposta.replaceChildren(
+        h("p", {}, `Você propôs: ${rotuloPrazo(p.ttl_minutos)}. Esperando ${conversa.perfil.nome_exibicao} confirmar.`),
+        h("div", { class: "acoes" }, h("button", { type: "button", class: "secundario",
+          onclick: () => acao("/proposta", "DELETE") }, "Desistir")));
+    } else {
+      areaProposta.replaceChildren(
+        h("p", {}, `${conversa.perfil.nome_exibicao} propôs mudar para: ${rotuloPrazo(p.ttl_minutos)}. Vale para as próximas mensagens.`),
+        h("div", { class: "acoes" },
+          h("button", { type: "button", class: "secundario", onclick: () => acao("/proposta", "DELETE") }, "Recusar"),
+          h("button", { type: "button", onclick: () => acao("/confirmar", "POST") }, "Aceitar")));
+    }
   }
 
   const campo = h("textarea", { name: "texto", required: true, maxlength: 2000, rows: 2, "aria-label": "Mensagem" });
@@ -63,7 +118,10 @@ export async function telaChat(outroId, ctx) {
   const cabecalho = h("div", { class: "cartao" });
   cabecalho.append(
     h("div", { class: "nome" }, conversa.perfil.nome_exibicao),
-    h("p", { class: "nota" }, "Mensagens cifradas no servidor e apagadas 5 minutos depois de lidas."),
+    textoPrazo,
+    h("details", { class: "prazo" }, h("summary", {}, "Prazo das mensagens"),
+      h("p", { class: "nota" }, "Mudar o prazo precisa das duas pessoas e vale só para as mensagens enviadas depois."),
+      areaProposta),
     h("div", { class: "acoes" },
       ...acoesDeSeguranca(outroId, () => cabecalho, { comMensagens: true }),
       h("button", { type: "button", class: "secundario", onclick: async () => {
@@ -76,7 +134,16 @@ export async function telaChat(outroId, ctx) {
   ctx.mostrar(h("h1", {}, "Conversa"), cabecalho, vazio, lista, envio);
   await sincronizar();
   if (!ctx.ativa()) return; // a pessoa saiu enquanto carregava: não deixa timers órfãos
-  const busca = setInterval(() => sincronizar().catch(() => {}), INTERVALO_MS);
+  const avisos = conectarAvisos((aviso) => {
+    if (aviso.conversa === outroId) sincronizar().catch(() => {});
+  });
+  let ultimaBusca = Date.now();
+  const busca = setInterval(() => {
+    const intervalo = avisos.conectado() ? INTERVALO_COM_AVISOS_MS : INTERVALO_SEM_AVISOS_MS;
+    if (Date.now() - ultimaBusca < intervalo) return;
+    ultimaBusca = Date.now();
+    sincronizar().catch(() => {});
+  }, 1000);
   const relogio = setInterval(atualizarRelogios, 1000);
-  aoSairDaTela(() => { clearInterval(busca); clearInterval(relogio); });
+  aoSairDaTela(() => { clearInterval(busca); clearInterval(relogio); avisos.fechar(); });
 }

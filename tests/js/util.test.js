@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  DESTINO_PANICO, descreverDistancia, executarPanico, formatarRestante, lerRota, mensagemDeErro, msAte,
+  DESTINO_PANICO, descreverDistancia, rotuloPrazo, descreverPrazo, executarPanico, formatarRestante, lerRota, mensagemDeErro, msAte,
   normalizarFilhos, b64urlParaBytes, bytesParaB64url, opcoesDeCriacao, opcoesDeLogin, credencialParaJSON,
   mensagemDeErroPasskey, PARADAS_DISTANCIA, indiceDaDistancia, distanciaDoIndice, rotuloDistancia,
 } from "../../static/js/util.js";
@@ -128,4 +128,25 @@ test("erro 500 mostra o código da requisição para o suporte", () => {
     "Algo deu errado do nosso lado. (código a1b2c3d4e5f60718)",
   );
   assert.equal(mensagemDeErro({ detail: "Perfil ainda não criado" }), "Perfil ainda não criado");
+});
+
+test("tempo restante: minutos, horas e dias", () => {
+  assert.equal(formatarRestante(59 * 60_000), "59:00");
+  assert.equal(formatarRestante(3_600_000), "1 h 00 min");
+  assert.equal(formatarRestante(24 * 3_600_000 - 60_000), "23 h 59 min");
+  assert.equal(formatarRestante(24 * 3_600_000), "1 d 0 h");
+  assert.equal(formatarRestante((3 * 24 + 4) * 3_600_000), "3 d 4 h");
+});
+
+test("nomes dos prazos das mensagens", () => {
+  const esperado = {
+    5: "5 minutos", 15: "15 minutos", 30: "30 minutos", 60: "1 hora", 360: "6 horas", 720: "12 horas",
+    1440: "24 horas", 4320: "3 dias", 10080: "1 semana", 20160: "14 dias", 40320: "4 semanas",
+    43200: "1 mês", 129600: "3 meses", 259200: "6 meses",
+  };
+  for (const [min, texto] of Object.entries(esperado)) assert.equal(rotuloPrazo(Number(min)), texto);
+  assert.equal(rotuloPrazo(null), "nunca");
+  assert.match(descreverPrazo(1440), /24 horas depois de lidas/);
+  assert.match(descreverPrazo(null), /não somem/);
+  assert.doesNotMatch(descreverPrazo(60), /ponta a ponta/); // nunca prometer E2EE
 });
