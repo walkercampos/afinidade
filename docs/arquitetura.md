@@ -57,7 +57,7 @@ Tudo que pertence a uma conta tem `ON DELETE CASCADE`: excluir a conta apaga tud
 |---|---|
 | E-mail | HMAC-SHA256 para busca + AES-256-GCM para avisos (chaves próprias, fora do banco); aberto só na hora de enviar; contatos registrados em `contatos_log` |
 | Data de nascimento | verificada no cadastro e descartada |
-| Coordenadas | viram uma célula de ~5 km; a posição exata nunca é gravada |
+| Coordenadas | viram uma célula de ~5 km; a posição exata nunca é gravada (detalhes e proteção contra trilateração em [localizacao.md](localizacao.md)) |
 | IP | não é registrado; o rate limit usa HMAC com chave em memória trocada a cada hora |
 | Metadados das fotos (GPS, aparelho) | removidos ao recriar a imagem pixel a pixel |
 | Foto nítida | só sai do servidor para o dono e para quem ele aprovou |

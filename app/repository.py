@@ -199,6 +199,16 @@ async def salvar_localizacao(con, conta_id: UUID, geohash, lat, lon, distancia_m
     return status != "UPDATE 0"
 
 
+async def salvar_distancia(con, conta_id: UUID, distancia_max_km) -> bool:
+    """Só troca o raio; exige localização ativa (sem ela o filtro esconderia todo mundo)."""
+    status = await con.execute(
+        "UPDATE perfis SET distancia_max_km = $2 WHERE conta_id = $1 AND geohash IS NOT NULL",
+        conta_id,
+        distancia_max_km,
+    )
+    return status != "UPDATE 0"
+
+
 # ---------- interações ----------
 
 

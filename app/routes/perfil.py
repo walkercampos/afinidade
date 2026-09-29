@@ -8,7 +8,15 @@ from ..catalogo import Catalogo
 from ..db import conexao
 from ..deps import exigir_perfil
 from ..ratelimit import exigir_limite
-from ..schemas import ItemCatalogo, Localizacao, LocalizacaoSalva, PerfilEntrada, PerfilProprio, TagsInteresses
+from ..schemas import (
+    Distancia,
+    ItemCatalogo,
+    Localizacao,
+    LocalizacaoSalva,
+    PerfilEntrada,
+    PerfilProprio,
+    TagsInteresses,
+)
 from ..security import conta_atual
 
 router = APIRouter(tags=["perfil"])
@@ -78,6 +86,16 @@ async def salvar_localizacao(dados: Localizacao, eu: UUID = Depends(conta_atual)
     regiao = geo.codificar(dados.lat, dados.lon)
     lat, lon = geo.centro(regiao)
     await repo.salvar_localizacao(con, eu, regiao, lat, lon, dados.distancia_max_km)
+    return LocalizacaoSalva(regiao=regiao, distancia_max_km=dados.distancia_max_km)
+
+
+@router.put("/perfil/distancia", response_model=LocalizacaoSalva)
+async def salvar_distancia(dados: Distancia, eu: UUID = Depends(conta_atual), con=Depends(conexao)):
+    """Troca só o raio da barra deslizante, sem pedir a posição de novo."""
+    await exigir_perfil(con, eu)
+    if not await repo.salvar_distancia(con, eu, dados.distancia_max_km):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Ative a localização para escolher uma distância.")
+    regiao = (await repo.buscar_perfil(con, eu))["geohash"]
     return LocalizacaoSalva(regiao=regiao, distancia_max_km=dados.distancia_max_km)
 
 

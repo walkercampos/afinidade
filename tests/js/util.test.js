@@ -5,7 +5,7 @@ import { test } from "node:test";
 import {
   DESTINO_PANICO, descreverDistancia, executarPanico, formatarRestante, lerRota, mensagemDeErro, msAte,
   normalizarFilhos, b64urlParaBytes, bytesParaB64url, opcoesDeCriacao, opcoesDeLogin, credencialParaJSON,
-  mensagemDeErroPasskey,
+  mensagemDeErroPasskey, PARADAS_DISTANCIA, indiceDaDistancia, distanciaDoIndice, rotuloDistancia,
 } from "../../static/js/util.js";
 
 test("pânico: apaga tela, limpa armazenamentos, encerra sessão e troca a página, nessa ordem", () => {
@@ -105,4 +105,19 @@ test("erros do navegador viram mensagens em português", () => {
   assert.match(mensagemDeErroPasskey({ name: "SecurityError" }), /HTTPS/);
   assert.equal(mensagemDeErroPasskey({ name: "Outro", message: "x" }), "x");
   assert.equal(mensagemDeErroPasskey(undefined), "Não foi possível usar a passkey.");
+});
+
+test("barra de distância: ida e volta entre raio e posição, extremos e valores fora das paradas", () => {
+  for (const km of PARADAS_DISTANCIA) assert.equal(distanciaDoIndice(indiceDaDistancia(km)), km);
+  assert.equal(distanciaDoIndice(0), 5);
+  assert.equal(distanciaDoIndice(PARADAS_DISTANCIA.length - 1), null); // última parada = qualquer distância
+  assert.equal(distanciaDoIndice(-3), 5);
+  assert.equal(distanciaDoIndice(999), null);
+  assert.equal(distanciaDoIndice("2"), 15); // o valor do <input type=range> chega como texto
+  // Raios salvos antes da barra (ex.: 60 km) caem na parada seguinte, nunca numa menor
+  assert.equal(distanciaDoIndice(indiceDaDistancia(60)), 75);
+  assert.equal(rotuloDistancia(25), "Até 25 km");
+  assert.equal(rotuloDistancia(null), "Qualquer distância");
+  // Toda parada numérica é aceita pela API (5 a 500 km)
+  assert.ok(PARADAS_DISTANCIA.every((km) => km === null || (km >= 5 && km <= 500)));
 });

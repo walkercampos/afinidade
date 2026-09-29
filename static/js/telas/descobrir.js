@@ -44,11 +44,25 @@ export async function telaDescobrir(_parametro, ctx) {
 
   const lista = h("div", {});
   const mais = h("button", { type: "button", class: "secundario" }, "Ver mais");
+  const vazio = h("p", { class: "vazio" });
   let proximo = pagina.proximo;
+  let jaViuAlguem = false;
+  // Sem cartões na tela: avisa por quê, em vez de deixar a página em branco.
+  function atualizarVazio() {
+    const semCartoes = lista.childElementCount === 0;
+    vazio.hidden = !semCartoes || Boolean(proximo);
+    vazio.textContent = jaViuAlguem
+      ? "Você viu todo mundo por enquanto. Volte mais tarde para ver quem chegou."
+      : "Ninguém compatível por enquanto. Volte mais tarde ou ajuste seus interesses e a distância.";
+  }
+  // Pular, Curtir, Bloquear e Denunciar removem o cartão: observa a lista em vez de cada botão.
+  new MutationObserver(atualizarVazio).observe(lista, { childList: true });
   function acrescentar({ itens, proximo: p }) {
     lista.append(...itens.map(cartaoCandidato));
+    jaViuAlguem ||= itens.length > 0;
     proximo = p;
     mais.hidden = !proximo;
+    atualizarVazio();
   }
   mais.addEventListener("click", async () => { mais.disabled = true; acrescentar(await buscar(proximo)); mais.disabled = false; });
 
@@ -57,7 +71,8 @@ export async function telaDescobrir(_parametro, ctx) {
 
   ctx.mostrar(
     h("div", { class: "titulo-com-acao" }, h("h1", {}, "Descobrir"), seletor),
-    pagina.itens.length ? lista : h("p", { class: "vazio" }, "Ninguém compatível por enquanto. Volte mais tarde ou ajuste seus interesses e a distância."),
+    lista,
+    vazio,
     h("div", { class: "acoes" }, mais),
   );
   acrescentar(pagina);

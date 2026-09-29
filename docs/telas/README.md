@@ -11,6 +11,7 @@ contas de teste e a "foto" é uma imagem de teste.
 | 04 | Ativar biometria | [04-ativar-biometria.png](04-ativar-biometria.png) |
 | 05 | Criar perfil | [05-criar-perfil.png](05-criar-perfil.png) |
 | 06 | Meu perfil | [06-meu-perfil.png](06-meu-perfil.png) |
+| 06b | Barra de distância (detalhe) | [06b-barra-de-distancia.png](06b-barra-de-distancia.png) |
 | 07 | Descobrir | [07-descobrir.png](07-descobrir.png) |
 | 08 | Pedido para ver as fotos | [08-pedido-de-fotos.png](08-pedido-de-fotos.png) |
 | 09 | É uma conexão | [09-e-uma-conexao.png](09-e-uma-conexao.png) |

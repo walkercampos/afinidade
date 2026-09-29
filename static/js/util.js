@@ -27,6 +27,25 @@ export function formatarRestante(ms) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/** Paradas da barra de distância: passos pequenos perto, maiores longe; a última é "qualquer". */
+export const PARADAS_DISTANCIA = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 300, 500, null];
+
+/** Posição na barra para um raio salvo (o mais próximo que não fica menor). */
+export function indiceDaDistancia(km) {
+  if (km == null) return PARADAS_DISTANCIA.length - 1;
+  const i = PARADAS_DISTANCIA.findIndex((p) => p != null && p >= km);
+  return i === -1 ? PARADAS_DISTANCIA.length - 2 : i;
+}
+
+export function distanciaDoIndice(i) {
+  const max = PARADAS_DISTANCIA.length - 1;
+  return PARADAS_DISTANCIA[Math.min(max, Math.max(0, Math.round(Number(i)) || 0))];
+}
+
+export function rotuloDistancia(km) {
+  return km == null ? "Qualquer distância" : `Até ${km} km`;
+}
+
 export function descreverDistancia(km) {
   return km == null ? null : `até ${km} km`;
 }

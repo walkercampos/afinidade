@@ -67,11 +67,17 @@ p.nota { color: var(--suave); font-size: .9rem; margin: 4px 0 12px; }
 .chip.comum { border-color: rgb(232 88 126 / .6); color: #ffd9e3; background: rgb(232 88 126 / .12); font-weight: 600; }
 
 label { display: block; font-weight: 600; font-size: .9rem; margin: 12px 0 4px; }
-input:where(:not([type=checkbox], [type=radio], [type=file])), select, textarea {
+input:where(:not([type=checkbox], [type=radio], [type=file], [type=range])), select, textarea {
   width: 100%; font: inherit; color: inherit; background: rgb(17 13 22 / .6);
   border: 1px solid var(--borda); border-radius: 12px; padding: 11px 13px;
 }
 textarea { min-height: 88px; resize: vertical; }
+/* Barra de distância: área de toque de 44 px, trilho e botão nas cores do tema. */
+.barra-distancia { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 12px; }
+.barra-distancia label { margin: 0; }
+.valor-barra { font-family: var(--serifa); font-style: italic; font-size: 1.4rem; color: var(--destaque); white-space: nowrap; }
+input[type=range] { width: 100%; height: 44px; margin: 4px 0; accent-color: var(--destaque); background: transparent; cursor: pointer; }
+input[type=range]:disabled { opacity: .4; cursor: not-allowed; }
 input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible {
   outline: 2px solid var(--destaque-2); outline-offset: 2px;
 }

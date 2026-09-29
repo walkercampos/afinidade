@@ -1,9 +1,9 @@
 import { api, carregarCatalogo, enviarArquivo } from "../api.js";
 import { avisar, formulario, h } from "../dom.js";
 import { irPara } from "../roteador.js";
+import { distanciaDoIndice, indiceDaDistancia, PARADAS_DISTANCIA, rotuloDistancia } from "../util.js";
 
 const NIVEIS = [["quero", "Quero"], ["curioso", "Curioso"], ["limite_absoluto", "Limite"]];
-const DISTANCIAS = [null, 5, 10, 25, 50, 100, 300];
 
 function seletorDeInteresses(tags, atual) {
   const niveis = new Map();
@@ -101,17 +101,39 @@ async function secaoPedidos() {
 }
 
 function secaoLocalizacao(atual) {
-  const status = h("p", { class: "nota" }, atual.localizacao.regiao
+  const ativa = Boolean(atual.localizacao.regiao);
+  const status = h("p", { class: "nota" }, ativa
     ? "Localização aproximada ativa (região de ~5 km)." : "Sem localização: você vê e é visto(a) sem filtro de distância.");
-  const distancia = h("select", { "aria-label": "Distância máxima" },
-    DISTANCIAS.map((d) => h("option", { value: d ?? "", selected: d === atual.localizacao.distancia_max_km },
-      d ? `Até ${d} km` : "Qualquer distância")));
+  const rotulo = h("output", { for: "distancia", class: "valor-barra" }, rotuloDistancia(atual.localizacao.distancia_max_km));
+  const barra = h("input", {
+    id: "distancia", type: "range", min: 0, max: PARADAS_DISTANCIA.length - 1, step: 1,
+    value: indiceDaDistancia(atual.localizacao.distancia_max_km), disabled: !ativa,
+    "aria-describedby": "distancia-nota",
+  });
+  const valor = () => distanciaDoIndice(barra.value);
+  const mostrarValor = () => {
+    rotulo.textContent = rotuloDistancia(valor());
+    barra.setAttribute("aria-valuetext", rotulo.textContent);
+  };
+  mostrarValor();
+  barra.addEventListener("input", mostrarValor);
+  // Salva ao soltar a barra (não a cada pixel arrastado).
+  barra.addEventListener("change", async () => {
+    await api("/perfil/distancia", { metodo: "PUT", corpo: { distancia_max_km: valor() } });
+    avisar(`Distância salva: ${rotuloDistancia(valor()).toLowerCase()}`);
+  });
   return h("section", { class: "cartao" },
     h("h2", {}, "Localização"),
     h("p", { class: "nota" }, "O app guarda só um quadrado de ~5 km; sua posição exata é descartada. Os outros veem apenas \"até N km\"."),
-    status, distancia,
+    status,
+    h("div", { class: "barra-distancia" },
+      h("label", { for: "distancia" }, "Distância máxima"), rotulo),
+    barra,
+    h("p", { class: "nota", id: "distancia-nota" }, ativa
+      ? "Arraste para escolher até onde quer ver pessoas. Vale para os dois lados: quem escolheu um raio menor também decide."
+      : "Ative a localização para escolher uma distância."),
     h("div", { class: "acoes" },
-      h("button", { type: "button", class: "secundario", onclick: async () => {
+      ativa && h("button", { type: "button", class: "secundario", onclick: async () => {
         await api("/perfil/localizacao", { metodo: "DELETE" });
         irPara("perfil");
       } }, "Remover"),
@@ -119,12 +141,12 @@ function secaoLocalizacao(atual) {
         if (!navigator.geolocation) return avisar("Seu navegador não oferece localização.");
         navigator.geolocation.getCurrentPosition(async ({ coords }) => {
           await api("/perfil/localizacao", { metodo: "PUT", corpo: {
-            lat: coords.latitude, lon: coords.longitude, distancia_max_km: distancia.value ? Number(distancia.value) : null,
+            lat: coords.latitude, lon: coords.longitude, distancia_max_km: valor(),
           } });
           avisar("Localização aproximada salva");
           irPara("perfil");
         }, () => avisar("Não foi possível obter a localização."), { enableHighAccuracy: false, maximumAge: 600000 });
-      } }, "Usar minha localização")));
+      } }, ativa ? "Atualizar minha região" : "Usar minha localização")));
 }
 
 export async function telaPerfil(_parametro, ctx) {

@@ -15,7 +15,7 @@ para manter no ar.
    18 anos ou mais e que aceita o uso dos dados sobre sexualidade para encontrar compatibilidades.
 2. **Monta o perfil:** um nome de exibição (pode ser inventado), o próprio gênero, os gêneros que busca e,
    para cada prática da lista, marca **Quero**, **Curioso(a)** ou **Limite** (nunca).
-3. Opcionalmente, **ativa a localização aproximada** e escolhe uma distância máxima ("até 25 km").
+3. Opcionalmente, **ativa a localização aproximada** e escolhe a distância máxima numa barra deslizante (de 5 a 500 km, ou qualquer distância).
 4. Opcionalmente, **envia até 3 fotos**. Quem ainda não foi autorizado vê as fotos borradas.
 5. Em **Descobrir**, vê os perfis compatíveis com uma porcentagem de afinidade e pode ordenar por
    "mais compatíveis", "gostos parecidos" ou "ativos recentemente". Pode curtir, pular, bloquear ou denunciar.
