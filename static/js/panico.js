@@ -1,9 +1,20 @@
 import { encerrarSessaoSemEsperar } from "./api.js";
+import { discretoAtual } from "./discricao.js";
 import { executarPanico } from "./util.js";
+
+// Apaga tudo o que o site guardou, menos o modo discreto (quando ligado): senão a próxima
+// abertura mostraria "Afinidade" na aba antes do login, justamente o que a pessoa quer evitar.
+const localPreservandoDiscricao = {
+  clear() {
+    const discreto = discretoAtual();
+    window.localStorage.clear();
+    if (discreto) window.localStorage.setItem("afinidade.discreto", "1");
+  },
+};
 
 function acionar() {
   executarPanico({
-    armazenamentos: [window.localStorage, window.sessionStorage],
+    armazenamentos: [localPreservandoDiscricao, window.sessionStorage],
     limparTela: () => {
       document.title = "Google";
       document.body.replaceChildren();

@@ -122,7 +122,9 @@ def test_configuracao_e_proposta_de_prazo_por_conversa(conexao_entre, pessoa, db
 def test_termos_e_idade_sao_gravados_completos(pessoa, db):
     p = pessoa()
     with pytest.raises(asyncpg.CheckViolationError):
-        db.execute("UPDATE contas SET termos_versao = '2026-10-01' WHERE id = $1::uuid", p.id)  # sem a data do aceite
+        db.execute(
+            "UPDATE contas SET termos_versao = '2026-10-01', termos_aceitos_em = NULL WHERE id = $1::uuid", p.id
+        )  # sem a data do aceite
     with pytest.raises(asyncpg.CheckViolationError):
         db.execute("UPDATE contas SET idade_verificada_em = now() WHERE id = $1::uuid", p.id)  # sem o provedor
     with pytest.raises(asyncpg.CheckViolationError):
@@ -134,12 +136,22 @@ def test_termos_e_idade_sao_gravados_completos(pessoa, db):
         " idade_verificada_em = now(), idade_provedor = 'didit' WHERE id = $1::uuid",
         p.id,
     )
-    # Contas existentes começam sem aceite nem verificação, e com o modo discreto desligado
+    # Conta nova: aceite só da versão atual (feito no cadastro), sem verificação e sem modo discreto
+    from app.termos import VERSAO_ATUAL
+
     nova = pessoa()
     linha = db.fetchrow(
         "SELECT termos_versao, idade_verificada_em, modo_discreto FROM contas WHERE id = $1::uuid", nova.id
     )
-    assert dict(linha) == {"termos_versao": None, "idade_verificada_em": None, "modo_discreto": False}
+    assert dict(linha) == {"termos_versao": VERSAO_ATUAL, "idade_verificada_em": None, "modo_discreto": False}
+    # Na coluna, o padrão continua "nenhum aceite" (contas anteriores à Parte 10)
+    assert (
+        db.fetchval(
+            "SELECT column_default FROM information_schema.columns"
+            " WHERE table_name = 'contas' AND column_name = 'termos_versao'"
+        )
+        is None
+    )
 
 
 def test_tentativa_de_verificacao_de_idade(pessoa, db):
