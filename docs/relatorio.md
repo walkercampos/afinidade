@@ -17,6 +17,8 @@ para manter no ar.
    (selfie com prova de vida). O app recebe só o resultado; nenhuma foto ou documento fica aqui.
    Aceita os **termos de uso e a política de privacidade** (páginas públicas, em linguagem simples).
    Em Conta, pode ligar o **modo discreto**: o app passa a aparecer como "Notas", com ícone neutro.
+   Antes de um encontro presencial, pode registrar um **encontro seguro**: se não confirmar que está
+   bem até o horário combinado, um contato de confiança recebe o local e com quem a pessoa está.
 2. **Monta o perfil:** um nome de exibição (pode ser inventado), o próprio gênero, os gêneros que busca e,
    para cada prática da lista, marca **Quero**, **Curioso(a)** ou **Limite** (nunca).
 3. Opcionalmente, **ativa a localização aproximada** e escolhe a distância máxima numa barra deslizante (de 5 a 500 km, ou qualquer distância).
