@@ -12,12 +12,12 @@ Rede social adulta (18+) de conexões por afinidade, com foco em diversidade de 
 - **Para desenvolver:** [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/arquitetura.md](docs/arquitetura.md)
 - **Segurança:** [SECURITY.md](SECURITY.md) · **E-mail + biometria:** [docs/autenticacao.md](docs/autenticacao.md) · **Próximos passos:** [docs/roadmap.md](docs/roadmap.md) · **Plano de execução:** [docs/plano/](docs/plano/parte-01-arquitetura.md) · **Telas:** [docs/telas/](docs/telas/README.md)
 - **Operação (deploy, versões, incidentes, LGPD):** [docs/operacao.md](docs/operacao.md) · **Mudanças:** [CHANGELOG.md](CHANGELOG.md)
-- **Linguagem visual "Véu Luminoso":** [docs/design/](docs/design/filosofia-veu-luminoso.md)
+- **Sistema visual (temas claro e escuro):** [docs/design/sistema-visual.md](docs/design/sistema-visual.md)
 
 <p>
   <img src="docs/design/tela-entrar.png" width="220" alt="Tela de entrada">
   <img src="docs/design/tela-descobrir.png" width="220" alt="Descobrir, com foto borrada">
-  <img src="docs/design/tela-chat.png" width="220" alt="Chat efêmero com contagem regressiva">
+  <img src="docs/design/tela-chat.png" width="220" alt="Chat no tema escuro, com o prazo das mensagens">
 </p>
 
 ## O que o app faz

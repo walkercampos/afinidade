@@ -29,6 +29,9 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
   app não sobe com a verificação obrigatória e sem provedor real.
 
 ### Mudado
+- Visual novo, no padrão dos apps mais usados no mundo: fonte do próprio aparelho, temas claro e
+  escuro que seguem o celular, cartões limpos, botões em pílula, chips de interesses e barra de
+  abas com ícones. Sai a identidade "Véu Luminoso" e a fonte serifada baixada pelo app.
 - O prazo padrão das mensagens passa de 5 minutos para **24 horas depois de lidas**. Mensagens
   já enviadas mantêm os 5 minutos.
 
