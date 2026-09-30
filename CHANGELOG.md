@@ -15,6 +15,15 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
 ### Adicionado
 - Protótipo do formulário de identidade (orientação, gênero e características), autocontido em
   `prototipos/formulario-identidade/index.html`, no sistema visual do app, com testes no navegador.
+- Regra de testes: tudo que é novo entra com teste unitário e uma sessão de teste exploratório
+  registrada em `docs/testes-exploratorios/` (método, heurísticas do projeto e modelo).
+- 22 testes unitários da lógica do formulário de identidade, rodando no Node sem navegador.
+
+### Corrigido
+- Formulário de identidade: o mínimo de 3 caracteres do "Outro" podia ser burlado com caracteres
+  invisíveis (`a` + espaço de largura zero + `b`) ou com emojis (`🙂🙂` contava 4). Agora conta só o
+  que se vê, e o texto enviado sai sem invisíveis.
+- Formulário de identidade: com zoom de 200% no celular, nomes longos criavam rolagem lateral.
 
 ## [0.5.0] - 2026-09-29
 

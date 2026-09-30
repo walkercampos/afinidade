@@ -98,7 +98,7 @@ test("Outro revela o campo, exige 3 caracteres e o JSON final sai no console", a
   pagina.once("dialog", (d) => { mensagem = d.message(); d.accept(); });
   await pagina.click("button[type=submit]");
   await pagina.waitForFunction(() => document.activeElement?.id === "orientacao-outro-texto");
-  assert.match(mensagem, /pelo menos 3 caracteres/);
+  assert.match(mensagem, /pelo menos 3 letras, números ou símbolos/);
   assert.equal(logs.length, 0);
   assert.equal(await pagina.getAttribute("#orientacao-outro-texto", "aria-invalid"), "true");
 
@@ -118,6 +118,35 @@ test("Outro revela o campo, exige 3 caracteres e o JSON final sai no console", a
   await pagina.uncheck("#orientacao-outro");
   assert.ok(await pagina.isHidden("#orientacao-outro-texto"));
   assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test("regressão (teste exploratório): invisíveis e emojis não burlam o mínimo do 'Outro'", async () => {
+  const { ctx, pagina, logs } = await abrir();
+  await pagina.check("#genero-outro");
+  for (const texto of ["a\u200b\u200bb", "🙂🙂"]) {
+    await pagina.fill("#genero-outro-texto", texto);
+    let alertou = false;
+    pagina.once("dialog", (d) => { alertou = true; d.accept(); });
+    await pagina.click("button[type=submit]");
+    await pagina.waitForFunction(() => document.activeElement?.id === "genero-outro-texto");
+    assert.ok(alertou, `deveria bloquear ${JSON.stringify(texto)}`);
+  }
+  await pagina.fill("#genero-outro-texto", "demi\u200bgaroto");
+  await pagina.click("button[type=submit]");
+  await pagina.waitForTimeout(100);
+  assert.deepEqual(logs.at(-1).genero, [{ id: "outro", nome: "Outro", texto: "demigaroto" }]);
+  await ctx.close();
+});
+
+test("regressão (teste exploratório): com zoom de 200% (180 px) nada rola na horizontal", async () => {
+  const { ctx, pagina } = await abrir({ viewport: { width: 180, height: 400 } });
+  const rolaSemBalao = await pagina.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+  assert.equal(rolaSemBalao, false, "nomes longos como 'Cisheteronormatividade' precisam quebrar");
+  for (const icone of await pagina.locator(".info").all()) {
+    await icone.focus();
+    assert.equal(await pagina.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  }
   await ctx.close();
 });
 
