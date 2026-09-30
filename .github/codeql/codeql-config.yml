@@ -1,0 +1,9 @@
+# Configuração do CodeQL (usada por .github/workflows/codeql.yml).
+name: afinidade
+
+paths-ignore:
+  # Ferramenta de teste de carga: não vai para a imagem (o Dockerfile copia só app/, db/ e
+  # static/) e existe justamente para ler tokens de teste de carga/.tokens.json e mandá-los à
+  # API sob teste. Esses tokens valem só para o banco *_carga (ver carga/README.md). Analisar
+  # esta pasta só gera alertas de "dado de arquivo em requisição de rede" por projeto.
+  - carga
