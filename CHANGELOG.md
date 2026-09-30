@@ -12,6 +12,10 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
 
 ## [Não lançado]
 
+### Adicionado
+- Protótipo do formulário de identidade (orientação, gênero e características), autocontido em
+  `prototipos/formulario-identidade/index.html`, no sistema visual do app, com testes no navegador.
+
 ## [0.5.0] - 2026-09-29
 
 ### Adicionado
