@@ -79,12 +79,24 @@ Exemplo: "favoritar perfis".
 
 Todo PR vem com testes, e o CI bloqueia o merge se a cobertura cair abaixo de 95%.
 
+**Regra: tudo que for novo entra com teste unitário e teste exploratório.**
+
+1. **Unitário:** cada função nova com lógica (Python ou JS) tem teste próprio, rápido e sem
+   banco nem navegador. No front, a lógica fica em funções puras testadas em `tests/js/`
+   (protótipos de arquivo único marcam o trecho puro com `<logica-pura>`, que o teste roda no Node).
+2. **Exploratório:** uma sessão com missão e tempo fechado, registrada em
+   [`docs/testes-exploratorios/`](docs/testes-exploratorios/README.md) a partir do modelo.
+   Todo bug encontrado vira teste de regressão no mesmo PR.
+
 | Tipo | Arquivo | Quando usar |
 |---|---|---|
 | Unitário | `tests/test_unit_<módulo>.py` | Funções puras: algoritmo, validação, cifragem, geohash, cursor. Rodam em milissegundos e sem banco. |
 | Ponta a ponta | `tests/test_<domínio>.py` | Fluxos pela API com PostgreSQL real, com fixtures `pessoa`, `conexao_entre` e `db`. |
 | Regressão | `tests/test_unit_regressoes.py` | **Todo bug corrigido ganha um teste que reproduz o erro**, com o nome do problema. |
 | Paridade | `tests/test_paridade.py` | Garante que o algoritmo em SQL e em Python dão o mesmo resultado. |
+| Unitário do front | `tests/js/*.test.js` | Funções puras do front e dos protótipos (`npm test`, sem dependências). |
+| Navegador | `tests/e2e/*.test.js` | Fluxos reais no Chromium (`npm run e2e`): telas, teclado, toque, zoom, tema. |
+| Exploratório | `docs/testes-exploratorios/` | Sessão registrada para tudo que é novo; os achados viram testes acima. |
 
 Para cada função nova, teste pelo menos:
 

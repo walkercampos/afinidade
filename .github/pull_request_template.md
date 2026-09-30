@@ -9,7 +9,8 @@
 ## Checklist
 
 - [ ] `make verificar` passa (lint, testes e auditoria)
-- [ ] Testes novos cobrem a mudança (e um teste de regressão, se for correção de bug)
+- [ ] Testes unitários para toda lógica nova (e um teste de regressão, se for correção de bug)
+- [ ] Teste exploratório feito e registrado em `docs/testes-exploratorios/`; achados viraram testes
 - [ ] Nenhum dado pessoal novo em logs, respostas de erro ou no banco sem cifrar
 - [ ] Limites absolutos continuam invisíveis para outras pessoas
 - [ ] Textos não prometem anonimato total nem criptografia ponta a ponta

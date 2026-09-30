@@ -85,6 +85,7 @@
     .opcao:hover { background: var(--superficie-2); }
     .opcao label { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0; min-height: 44px;
       cursor: pointer; font-weight: 500; }
+    .opcao label span { min-width: 0; overflow-wrap: anywhere; } /* zoom de 200%: "Cisheteronormatividade" quebra */
     .opcao input[type=checkbox] { width: 20px; height: 20px; flex: none; margin: 0; accent-color: var(--acento); cursor: pointer; }
     .opcao input[type=checkbox]:focus-visible { outline: none; box-shadow: var(--anel); border-radius: 4px; }
     .opcao:has(input:checked) label { color: var(--acento-texto); font-weight: 700; }
@@ -174,6 +175,10 @@
   <script>
     "use strict";
 
+    // <logica-pura> ---------------------------------------------------------------------------
+    // Daqui até </logica-pura> não há DOM: tests/js/formulario_identidade.test.js roda este
+    // trecho no Node e testa cada função isoladamente.
+
     // Fonte única das opções: o formulário inteiro é montado a partir daqui.
     const OPCOES = {
       orientacao: [
@@ -215,7 +220,55 @@
 
     // Sempre a última opção de cada categoria.
     const OUTRO = { id: "outro", nome: "Outro (descreva)", descricao: "Não encontrou a sua? Descreva com as suas palavras." };
-    const MINIMO_OUTRO = 3;
+    const MINIMO_OUTRO = 3;   // caracteres visíveis
+    const MAXIMO_OUTRO = 200; // caracteres (o mesmo maxlength do campo)
+    const LARGURA_DICA = 260;
+    const MARGEM_TELA = 16;
+
+    // Caracteres de formatação invisíveis (espaço de largura zero, hífen suave, marcas de direção...).
+    // O ZWJ (U+200D) fica: ele une emojis compostos, como 👩🏽‍💻.
+    const INVISIVEIS = /(?!\u200d)\p{Cf}/gu;
+    const graficos = (texto) => Array.from(new Intl.Segmenter("pt-BR", { granularity: "grapheme" }).segment(texto), (s) => s.segment);
+
+    /** Texto do "Outro" como será enviado: NFC, sem invisíveis, espaços únicos, até MAXIMO_OUTRO caracteres. */
+    function limparOutro(texto) {
+      const limpo = String(texto ?? "").normalize("NFC").replace(INVISIVEIS, "").replace(/\s+/gu, " ").trim();
+      return graficos(limpo).slice(0, MAXIMO_OUTRO).join("").trim();
+    }
+
+    /** Caracteres que a pessoa enxerga: emoji composto conta 1; espaços e invisíveis não contam. */
+    function contarVisiveis(texto) {
+      return graficos(limparOutro(texto)).filter((g) => /[^\s\u200d]/u.test(g)).length;
+    }
+
+    /**
+     * Monta o JSON a partir do que está marcado.
+     * marcados: { categoria: [ids] }; textosOutro: { categoria: texto }.
+     * Ids desconhecidos são ignorados; a ordem é a de OPCOES, não a dos cliques.
+     */
+    function montarIdentidade(opcoes, marcados = {}, textosOutro = {}) {
+      const resultado = {};
+      const invalidas = [];
+      for (const [categoria, itens] of Object.entries(opcoes)) {
+        const escolhidos = new Set(marcados[categoria] ?? []);
+        resultado[categoria] = itens.filter((o) => escolhidos.has(o.id)).map(({ id, nome }) => ({ id, nome }));
+        if (!escolhidos.has(OUTRO.id)) continue;
+        const texto = limparOutro(textosOutro[categoria]);
+        if (contarVisiveis(texto) < MINIMO_OUTRO) invalidas.push(categoria);
+        else resultado[categoria].push({ id: OUTRO.id, nome: "Outro", texto });
+      }
+      return { resultado, invalidas };
+    }
+
+    /** Para que lado o balão se alinha, dado o centro do ícone. null = centralizado. */
+    function ladoDaDica(centroX, larguraTela) {
+      const metade = Math.min(LARGURA_DICA, larguraTela - 2 * MARGEM_TELA) / 2;
+      // O balão nunca é mais largo que a tela menos as margens, então só estoura de um lado por vez.
+      if (centroX - metade < MARGEM_TELA) return "a-direita";
+      if (centroX + metade > larguraTela - MARGEM_TELA) return "a-esquerda";
+      return null;
+    }
+    // </logica-pura> --------------------------------------------------------------------------
 
     /** Cria um elemento. Texto sempre por textContent: nada vira HTML (mesma regra do app). */
     function h(tag, atributos = {}, ...filhos) {
@@ -249,7 +302,7 @@
           iconeInfo(item)));
       }
       const outroTexto = h("textarea", {
-        id: `${categoria}-outro-texto`, name: `${categoria}-outro-texto`, maxlength: "200",
+        id: `${categoria}-outro-texto`, name: `${categoria}-outro-texto`, maxlength: String(MAXIMO_OUTRO),
         placeholder: "Descreva como você se identifica", "aria-label": `Outro: descreva (${categoria})`,
       });
       const outroMarcado = lista.querySelector(`#${categoria}-outro`);
@@ -266,34 +319,22 @@
     function posicionarDica(ev) {
       const icone = ev.target.closest(".info");
       if (!icone) return;
-      const x = icone.getBoundingClientRect().left + icone.offsetWidth / 2;
-      const metade = Math.min(260, window.innerWidth - 32) / 2;
-      icone.classList.toggle("dica-a-direita", x - metade < 16);
-      icone.classList.toggle("dica-a-esquerda", x + metade > window.innerWidth - 16);
+      const lado = ladoDaDica(icone.getBoundingClientRect().left + icone.offsetWidth / 2, window.innerWidth);
+      icone.classList.toggle("dica-a-direita", lado === "a-direita");
+      icone.classList.toggle("dica-a-esquerda", lado === "a-esquerda");
     }
 
-    /** { orientacao: [...], genero: [...], biologica: [...] } com o que está marcado. */
+    /** Lê o formulário e delega para montarIdentidade; marca os campos "Outro" inválidos. */
     function coletar(form) {
-      const resultado = {};
-      const erros = [];
+      const marcados = {};
+      const textosOutro = {};
       for (const categoria of Object.keys(OPCOES)) {
-        resultado[categoria] = [];
-        for (const caixa of form.querySelectorAll(`input[name="${categoria}"]:checked`)) {
-          if (caixa.value !== OUTRO.id) {
-            const item = OPCOES[categoria].find((o) => o.id === caixa.value);
-            resultado[categoria].push({ id: item.id, nome: item.nome });
-            continue;
-          }
-          const campo = form.querySelector(`#${categoria}-outro-texto`);
-          const texto = campo.value.trim();
-          if (texto.length < MINIMO_OUTRO) {
-            campo.setAttribute("aria-invalid", "true");
-            erros.push(campo);
-          } else {
-            resultado[categoria].push({ id: OUTRO.id, nome: "Outro", texto });
-          }
-        }
+        marcados[categoria] = [...form.querySelectorAll(`input[name="${categoria}"]:checked`)].map((c) => c.value);
+        textosOutro[categoria] = form.querySelector(`#${categoria}-outro-texto`).value;
       }
+      const { resultado, invalidas } = montarIdentidade(OPCOES, marcados, textosOutro);
+      const erros = invalidas.map((categoria) => form.querySelector(`#${categoria}-outro-texto`));
+      for (const campo of erros) campo.setAttribute("aria-invalid", "true");
       return { resultado, erros };
     }
 
@@ -306,7 +347,7 @@
       ev.preventDefault();
       const { resultado, erros } = coletar(form);
       if (erros.length) {
-        alert(`Em "Outro", descreva com pelo menos ${MINIMO_OUTRO} caracteres.`);
+        alert(`Em "Outro", descreva com pelo menos ${MINIMO_OUTRO} letras, números ou símbolos.`);
         erros[0].focus();
         return; // envio bloqueado
       }
