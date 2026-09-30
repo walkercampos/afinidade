@@ -27,7 +27,13 @@ PROPOSTA_VALE_DIAS = 7
 
 _EXPIRA_EM = "m.lida_em + make_interval(mins => m.ttl_minutos)"
 _VISIVEL = f"(m.lida_em IS NULL OR m.ttl_minutos IS NULL OR {_EXPIRA_EM} > now())"
-_DA_CONVERSA = "((m.de_id = $1 AND m.para_id = $2) OR (m.de_id = $2 AND m.para_id = $1))"
+# O par sem ordem, escrito do jeito que o índice mensagens_conversa_idx (LEAST, GREATEST, id) entende.
+# Com "(de = $1 AND para = $2) OR (de = $2 AND para = $1)" o banco lia a tabela inteira a cada
+# conversa aberta (teste de carga, docs/carga/): o custo crescia com o total de mensagens do app.
+_DA_CONVERSA = (
+    "(LEAST(m.de_id, m.para_id) = LEAST($1::uuid, $2::uuid)"
+    " AND GREATEST(m.de_id, m.para_id) = GREATEST($1::uuid, $2::uuid))"
+)
 
 
 class PropostaInvalida(Exception):

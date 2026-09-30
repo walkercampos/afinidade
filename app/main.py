@@ -23,6 +23,7 @@ from .routes import auth, chat, descoberta, fotos, moderacao, passkeys, perfil, 
 from .routes import encontros as rotas_encontros
 from .routes import idade as rotas_idade
 from .routes import termos as rotas_termos
+from .tempo_real import central
 
 log = logging.getLogger("matchmaking")
 DIR_STATIC = Path(__file__).resolve().parent.parent / "static"
@@ -68,11 +69,13 @@ async def lifespan(app: FastAPI):
     novas = await migrar(app.state.pool)
     if novas:
         log.info("Migrações aplicadas: %s", ", ".join(novas))
+    await central.ligar(cfg.database_url)
     tarefa = asyncio.create_task(_limpeza_periodica(app))
     yield
     tarefa.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await tarefa
+    await central.desligar()
     await app.state.pool.close()
 
 

@@ -9,8 +9,15 @@ DIR_MIGRACOES = DIR_DB / "migrations"
 _LOCK_MIGRACOES = 72_61_33_01
 
 
+# asyncpg prepara cada consulta; a partir da 6ª execução o PostgreSQL pode trocar o plano sob
+# medida por um "genérico", que não sabe quais filtros opcionais ($n IS NULL) valem. Na
+# descoberta isso ignorava o índice por atividade: 61 ms em vez de 7 ms por busca (teste de
+# carga, docs/carga/). Planejar sempre sob medida custa frações de milissegundo.
+CONFIG_SESSAO = {"plan_cache_mode": "force_custom_plan"}
+
+
 async def criar_pool(dsn: str) -> asyncpg.Pool:
-    return await asyncpg.create_pool(dsn, min_size=1, max_size=10)
+    return await asyncpg.create_pool(dsn, min_size=1, max_size=10, server_settings=CONFIG_SESSAO)
 
 
 async def migrar(pool: asyncpg.Pool) -> list[str]:

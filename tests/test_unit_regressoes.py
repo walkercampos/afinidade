@@ -79,3 +79,16 @@ def test_tentativas_de_codigo_sao_gravadas_mesmo_recusando():
 
     fonte = inspect.getsource(verificacao.confirmar_codigo)
     assert fonte.rstrip().endswith("raise VerificacaoInvalida(erro)")
+
+
+def test_websocket_sem_compressao_na_imagem():
+    """Teste de carga: a compressão por mensagem do WebSocket guardava um buffer zlib por conexão
+    (77 KB -> 43 KB por canal sem ela). Os avisos têm ~60 bytes: comprimir não ganha nada."""
+    from pathlib import Path
+
+    cmd = next(
+        linha
+        for linha in (Path(__file__).parent.parent / "Dockerfile").read_text().splitlines()
+        if linha.startswith("CMD ")
+    )
+    assert "--ws-per-message-deflate false" in cmd

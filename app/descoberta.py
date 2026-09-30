@@ -1,7 +1,8 @@
 """Consulta de candidatos: as três camadas do algoritmo + distância, tudo no Postgres.
 
 Camadas 1 e 2 e distância -> WHERE (com índices GIN / lat_aprox).
-Camada 3 e similaridade  -> expressões com intarray, usadas no ORDER BY.
+Camada 3 e similaridade  -> expressões com intarray, usadas no ORDER BY, calculadas só para os
+                            CANDIDATOS_MAX elegíveis mais ativos (custo fixo por busca).
 
 As fórmulas aqui espelham `matcher.calcular_match`, `matcher.score_mutuo` e
 `matcher.similaridade` exatamente (inclusive arredondamento); `tests/test_paridade.py`
@@ -23,6 +24,9 @@ ORDENS = {
     "recentes": (None, None),
 }
 KM_POR_GRAU_LAT = 111.0
+# Quantos perfis elegíveis (os mais ativos) entram no cálculo da nota a cada busca. Limita o
+# custo por requisição, qualquer que seja o tamanho da base; ver docs/carga/.
+CANDIDATOS_MAX = 1000
 
 
 class CursorInvalido(ValueError):
@@ -113,7 +117,23 @@ def _consulta(
         )
 
     sql = f"""
-    WITH base AS (
+    WITH elegiveis AS (
+        SELECT p.*,
+               CASE WHEN {lat} IS NOT NULL AND p.lat_aprox IS NOT NULL
+                    THEN distancia_km({lat}, {lon}, p.lat_aprox, p.lon_aprox) END AS distancia
+        FROM perfis p
+        JOIN contas ct ON ct.id = p.conta_id
+        WHERE {" AND ".join(filtros)}
+    ), candidatos AS (
+        -- Todos os filtros (inclusive distância nos dois sentidos) já valem aqui; a nota só é
+        -- calculada para os CANDIDATOS_MAX elegíveis mais ativos. Sem isso, cada chamada
+        -- pontuaria e ordenaria todos os perfis da região (O(N) por requisição).
+        SELECT * FROM elegiveis
+        WHERE ({dist_max} IS NULL OR distancia <= {dist_max})
+          AND (distancia_max_km IS NULL OR distancia <= distancia_max_km)
+        ORDER BY ativo_em DESC, conta_id DESC
+        LIMIT {CANDIDATOS_MAX}
+    ), base AS (
         SELECT p.*,
                -- Camada 3: pesos 3 / 2 / 2 / 1 (a soma é a mesma dos dois pontos de vista)
                3 * icount(p.tags_quero & {quero}) + 2 * icount(p.tags_curioso & {quero})
@@ -124,12 +144,8 @@ def _consulta(
                4 * icount(p.tags_quero & {quero}) + icount(p.tags_curioso & {curioso})
                  + 2 * (icount(p.tags_curioso & {quero}) + icount(p.tags_quero & {curioso})) AS produto,
                4 * cardinality({quero}) + cardinality({curioso})             AS norma_eu,
-               4 * cardinality(p.tags_quero) + cardinality(p.tags_curioso)   AS norma_outro,
-               CASE WHEN {lat} IS NOT NULL AND p.lat_aprox IS NOT NULL
-                    THEN distancia_km({lat}, {lon}, p.lat_aprox, p.lon_aprox) END AS distancia
-        FROM perfis p
-        JOIN contas ct ON ct.id = p.conta_id
-        WHERE {" AND ".join(filtros)}
+               4 * cardinality(p.tags_quero) + cardinality(p.tags_curioso)   AS norma_outro
+        FROM candidatos p
     ), notas AS (
         SELECT base.*,
                -- porcentagem com arredondamento "meio para cima" em inteiros (= matcher._porcentagem)
@@ -140,8 +156,6 @@ def _consulta(
                CASE WHEN produto = 0 THEN 0
                     ELSE floor(100 * produto / sqrt(norma_eu::float8 * norma_outro) + 0.5)::int END AS similaridade
         FROM base
-        WHERE ({dist_max} IS NULL OR distancia <= {dist_max})
-          AND (base.distancia_max_km IS NULL OR distancia <= base.distancia_max_km)
     ), final AS (
         SELECT notas.*, (score_eu + score_outro + 1) / 2 AS score_mutuo FROM notas
     )
