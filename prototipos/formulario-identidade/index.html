@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="light dark">
+  <title>Perfil · Orientação, gênero e características · Afinidade</title>
+  <!--
+    Protótipo autocontido (CSS e JS neste arquivo) do formulário de identidade do perfil.
+    Abre direto no navegador. Segue o sistema visual do app (docs/design/sistema-visual.md):
+    mesmos tokens, tema claro/escuro automático, botões em pílula, cartões e toque de 44 px+.
+
+    Para levar ao app: mover o <style> para static/app.css e o <script> para um módulo em
+    static/js/ (a CSP do app, `script-src 'self'; style-src 'self'`, bloqueia código inline).
+  -->
+  <style>
+    /* ---------- tokens (os mesmos de static/app.css) ---------- */
+    :root {
+      --fonte: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable", "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, system-ui, sans-serif;
+      --fundo: #f6f6f8;
+      --superficie: #ffffff;
+      --superficie-2: #f1f1f4;
+      --texto: #17171c;
+      --suave: #6b6b76;
+      --borda: #e4e4ea;
+      --acento: #e11d48;
+      --acento-hover: #be123c;
+      --acento-suave: #ffe4e8;
+      --acento-texto: #be123c;
+      --perigo: #dc2626;
+      --sombra-1: 0 1px 2px rgb(16 16 24 / .06), 0 1px 1px rgb(16 16 24 / .04);
+      --anel: 0 0 0 3px rgb(225 29 72 / .28);
+      --raio: 16px;
+      --raio-g: 22px;
+      --pilula: 999px;
+      --espaco: 16px;
+      /* Tooltip: sempre escuro, nos dois temas (pedido do projeto) */
+      --dica-fundo: #222;
+      --dica-texto: #fff;
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --fundo: #0b0b0f;
+        --superficie: #16161c;
+        --superficie-2: #202029;
+        --texto: #f4f4f6;
+        --suave: #a1a1ad;
+        --borda: #2a2a34;
+        --acento-suave: rgb(225 29 72 / .18);
+        --acento-texto: #fda4b4;
+        --sombra-1: 0 1px 0 rgb(255 255 255 / .03) inset;
+        --anel: 0 0 0 3px rgb(251 113 133 / .35);
+        --dica-fundo: #2c2c35; /* no fundo quase preto, #222 sumiria */
+      }
+    }
+
+    /* ---------- base ---------- */
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--fundo); color: var(--texto);
+      font: 16px/1.5 var(--fonte); letter-spacing: -.005em;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: clip; /* o balão de ajuda nunca cria rolagem lateral */
+    }
+    main { max-width: 640px; margin: 0 auto; padding: 8px var(--espaco) 48px; }
+    h1 { font-size: 1.85rem; font-weight: 800; line-height: 1.15; letter-spacing: -.03em; margin: 24px 0 8px; }
+    h2 { font-size: 1.1rem; font-weight: 700; letter-spacing: -.01em; margin: 0 0 4px; }
+    .nota { color: var(--suave); font-size: .9rem; margin: 4px 0 16px; }
+
+    .cartao {
+      background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio-g);
+      box-shadow: var(--sombra-1); padding: 18px; margin-bottom: 14px;
+    }
+    fieldset.cartao { min-width: 0; }
+    legend { padding: 0; float: left; width: 100%; } /* legend dentro do cartão, como um título */
+    legend + * { clear: both; }
+
+    /* ---------- opções ---------- */
+    .opcoes { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; }
+    .opcao { display: flex; align-items: center; gap: 8px; min-height: 44px; border-radius: 12px; padding: 0 8px; }
+    .opcao:hover { background: var(--superficie-2); }
+    .opcao label { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0; min-height: 44px;
+      cursor: pointer; font-weight: 500; }
+    .opcao input[type=checkbox] { width: 20px; height: 20px; flex: none; margin: 0; accent-color: var(--acento); cursor: pointer; }
+    .opcao input[type=checkbox]:focus-visible { outline: none; box-shadow: var(--anel); border-radius: 4px; }
+    .opcao:has(input:checked) label { color: var(--acento-texto); font-weight: 700; }
+
+    /* ---------- ícone ⓘ + balão de ajuda (CSS puro) ---------- */
+    .info {
+      position: relative; flex: none;
+      width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid currentColor;
+      display: inline-grid; place-items: center;
+      font: italic 700 11px/1 Georgia, "Times New Roman", serif;
+      color: var(--suave); cursor: help; user-select: none;
+    }
+    .info:hover, .info:focus-visible { color: var(--acento-texto); outline: none; }
+    .info:focus-visible { box-shadow: var(--anel); }
+    /* O balão */
+    .info::after {
+      content: attr(data-desc);
+      position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+      width: 260px; max-width: min(260px, calc(100vw - 2 * var(--espaco)));
+      background: var(--dica-fundo); color: var(--dica-texto);
+      font: 400 .84rem/1.45 var(--fonte); font-style: normal; letter-spacing: 0; text-align: left;
+      padding: 10px 12px; border-radius: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / .25);
+      white-space: normal; pointer-events: none; z-index: 20;
+      display: none; /* só existe enquanto aparece: balões escondidos não ocupam espaço nem criam rolagem */
+    }
+    /* A setinha, apontando para o ícone */
+    .info::before {
+      content: ""; position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+      border: 6px solid transparent; border-top-color: var(--dica-fundo); border-bottom-width: 0;
+      pointer-events: none; z-index: 21; display: none;
+    }
+    /* Passar o mouse (e, no teclado ou no toque, focar o ícone) mostra o balão */
+    .info:hover::after, .info:hover::before,
+    .info:focus-visible::after, .info:focus-visible::before,
+    .info:focus::after, .info:focus::before { display: block; animation: surgir .12s ease; }
+    @keyframes surgir { from { opacity: 0; } }
+    /* Perto das bordas da tela o balão se alinha ao ícone em vez de centralizar (o JS só troca a classe) */
+    .info.dica-a-direita::after { left: -8px; transform: none; }
+    .info.dica-a-esquerda::after { left: auto; right: -8px; transform: none; }
+    @media (prefers-reduced-motion: reduce) { .info::after, .info::before { animation: none !important; } }
+
+    /* ---------- "Outro (descreva)" ---------- */
+    textarea {
+      display: none; /* aparece só com o "Outro" marcado */
+      width: 100%; min-height: 88px; margin: 6px 0 4px; resize: vertical;
+      font: inherit; color: inherit; background: var(--superficie-2);
+      border: 1px solid transparent; border-radius: 14px; padding: 12px 14px;
+    }
+    textarea.visivel { display: block; }
+    textarea:focus { outline: none; background: var(--superficie); border-color: var(--acento); box-shadow: var(--anel); }
+    textarea[aria-invalid=true] { border-color: var(--perigo); }
+
+    /* ---------- envio ---------- */
+    button {
+      font: inherit; font-weight: 700; border: 0; border-radius: var(--pilula); min-height: 48px; padding: 12px 20px;
+      width: 100%; cursor: pointer; background: var(--acento); color: #fff; transition: background .15s, transform .08s;
+    }
+    button:hover { background: var(--acento-hover); }
+    button:active { transform: scale(.98); }
+    button:focus-visible { outline: none; box-shadow: var(--anel); }
+    .privacidade { font-size: .82rem; color: var(--suave); margin: 12px 4px 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Como você se identifica</h1>
+    <p class="nota">Marque quantas opções quiser em cada grupo. Toque no ⓘ para ver o que cada termo significa.
+      Nada é obrigatório.</p>
+
+    <form id="formulario" novalidate>
+      <fieldset class="cartao" data-categoria="orientacao">
+        <legend><h2>Orientação sexual e romântica</h2></legend>
+      </fieldset>
+      <fieldset class="cartao" data-categoria="genero">
+        <legend><h2>Identidade de gênero</h2></legend>
+      </fieldset>
+      <fieldset class="cartao" data-categoria="biologica">
+        <legend><h2>Características biológicas e de expressão</h2></legend>
+      </fieldset>
+
+      <button type="submit">Salvar</button>
+      <p class="privacidade">Essas informações são dados sensíveis (LGPD, art. 11). No app, só são usadas para
+        gerar compatibilidades, com o seu consentimento, e você pode apagá-las a qualquer momento.</p>
+    </form>
+  </main>
+
+  <script>
+    "use strict";
+
+    // Fonte única das opções: o formulário inteiro é montado a partir daqui.
+    const OPCOES = {
+      orientacao: [
+        { id: "heterossexualidade", nome: "Heterossexualidade", descricao: "Atração afetiva e/ou sexual por pessoas do gênero oposto." },
+        { id: "homossexualidade", nome: "Homossexualidade", descricao: "Atração afetiva e/ou sexual por pessoas do mesmo gênero (gays e lésbicas)." },
+        { id: "bissexualidade", nome: "Bissexualidade", descricao: "Atração afetiva e/ou sexual por mais de um gênero (homens, mulheres e identidades não-binárias)." },
+        { id: "pansexualidade", nome: "Pansexualidade", descricao: "Atração por pessoas, independentemente de seu sexo biológico, identidade ou expressão de gênero (foco no indivíduo)." },
+        { id: "polissexualidade", nome: "Polissexualidade", descricao: "Atração por múltiplos gêneros (por exemplo, atração por mulheres e pessoas não-binárias), mas não por todos os gêneros existentes." },
+        { id: "omnissexualidade", nome: "Omnissexualidade", descricao: "Atração por todos os gêneros, mas, diferentemente da pansexualidade, a pessoa reconhece o gênero do parceiro e pode ter preferências." },
+        { id: "assexualidade", nome: "Assexualidade", descricao: "Ausência total, parcial ou condicional de atração sexual por qualquer pessoa." },
+        { id: "demissexualidade", nome: "Demissexualidade", descricao: "Pertence ao espectro assexual; a pessoa só desenvolve atração sexual após estabelecer um forte vínculo emocional ou afetivo." },
+        { id: "grayssexualidade", nome: "Grayssexualidade (Cinzassexualidade)", descricao: "Zona cinzenta entre a assexualidade e a sexualidade ativa; a pessoa sente atração sexual raramente ou com baixíssima intensidade." },
+        { id: "arromantismo", nome: "Arromantismo", descricao: "Ausência de atração romântica (desejo de namorar ou criar vínculos amorosos), mesmo que a pessoa sinta atração física ou sexual." },
+        { id: "grairomantismo", nome: "Grairomantismo", descricao: "Zona cinzenta do arromantismo; a pessoa sente atração romântica de forma muito rara ou apenas sob condições muito específicas." },
+        { id: "abrosexualidade", nome: "Abrosexualidade", descricao: "Orientação sexual fluida, em que a atração da pessoa muda e transita constantemente ao longo do tempo." },
+        { id: "sapiossexualidade", nome: "Sapiossexualidade", descricao: "Atração sexual e afetiva baseada predominantemente na inteligência, cultura ou intelecto da outra pessoa." },
+        { id: "fraissexualidade", nome: "Fraissexualidade", descricao: "O oposto da demissexualidade; a pessoa sente atração por desconhecidos, mas perde o interesse sexual conforme cria intimidade." },
+        { id: "androssexualidade", nome: "Androssexualidade", descricao: "Atração por características masculinas ou pessoas que performam o gênero masculino, independentemente do sexo biológico delas." },
+        { id: "ginessexualidade", nome: "Ginessexualidade", descricao: "Atração por características femininas ou pessoas que performam o gênero feminino, independentemente do sexo biológico delas." },
+        { id: "alossexualidade", nome: "Alossexualidade", descricao: "Termo clínico para definir qualquer pessoa que vivencia atração sexual de forma regular (quem não é assexual)." },
+      ],
+      genero: [
+        { id: "cisgenero", nome: "Cisgênero", descricao: "Pessoa que se identifica com o gênero biológico que lhe foi atribuído ao nascer." },
+        { id: "transgenero", nome: "Transgênero", descricao: "Pessoa que se identifica com um gênero diferente daquele que lhe foi atribuído no nascimento (homens trans e mulheres trans)." },
+        { id: "nao-binario", nome: "Não-Binário", descricao: "Termo que engloba qualquer pessoa que não se reconhece estritamente dentro do binarismo homem/mulher." },
+        { id: "agenero", nome: "Agênero", descricao: "Pessoa que não se identifica com nenhum gênero; ausência total de identidade de gênero." },
+        { id: "genero-fluido", nome: "Gênero-Fluido", descricao: "Pessoa cuja identidade de gênero muda, transita e flutua ao longo do tempo (entre masculino, feminino ou não-binário)." },
+        { id: "bigenero", nome: "Bigênero", descricao: "Pessoa que se identifica com dois gêneros diferentes, seja ao mesmo tempo ou alternando entre eles." },
+        { id: "pangenero", nome: "Pangênero", descricao: "Pessoa que se identifica com todas as identidades de gênero possíveis dentro de sua cultura e época." },
+        { id: "demigenero", nome: "Demigênero", descricao: "Pessoa que se identifica apenas parcialmente com um gênero (ex: demiboy se identifica em parte com o gênero masculino e em parte com o não-binário)." },
+        { id: "travesti", nome: "Travesti", descricao: "Identidade política e social latino-americana; pessoas designadas no sexo masculino ao nascer que constroem sua vida e expressão no espectro feminino." },
+        { id: "queer", nome: "Queer", descricao: "Termo inclusivo para quem rejeita rótulos tradicionais e não se encaixa nas normas sociais de gênero ou sexualidade." },
+      ],
+      biologica: [
+        { id: "intersexo", nome: "Intersexo", descricao: "Pessoa que nasce com anatomia reprodutiva, órgãos genitais, hormônios ou cromossomos que não se encaixam nas definições típicas de corpo masculino ou feminino." },
+        { id: "cisheteronormatividade", nome: "Cisheteronormatividade", descricao: "O modelo social tradicional que assume que todas as pessoas são, por padrão, cisgêneras e heterossexuais." },
+      ],
+    };
+
+    // Sempre a última opção de cada categoria.
+    const OUTRO = { id: "outro", nome: "Outro (descreva)", descricao: "Não encontrou a sua? Descreva com as suas palavras." };
+    const MINIMO_OUTRO = 3;
+
+    /** Cria um elemento. Texto sempre por textContent: nada vira HTML (mesma regra do app). */
+    function h(tag, atributos = {}, ...filhos) {
+      const el = document.createElement(tag);
+      for (const [k, v] of Object.entries(atributos)) {
+        if (v === false || v == null) continue;
+        if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+        else el.setAttribute(k, v === true ? "" : v);
+      }
+      for (const f of filhos.flat()) if (f != null) el.append(f instanceof Node ? f : document.createTextNode(String(f)));
+      return el;
+    }
+
+    /** Ícone ⓘ: o balão sai do data-desc via CSS; o foco (teclado/toque) também o mostra. */
+    function iconeInfo(item) {
+      return h("span", {
+        class: "info", tabindex: "0", role: "img",
+        "aria-label": `Sobre ${item.nome}: ${item.descricao}`, "data-desc": item.descricao,
+      }, "i");
+    }
+
+    function renderizarCategoria(fieldset) {
+      const categoria = fieldset.dataset.categoria;
+      const lista = h("ul", { class: "opcoes" });
+      for (const item of [...OPCOES[categoria], OUTRO]) {
+        const id = `${categoria}-${item.id}`;
+        lista.append(h("li", { class: "opcao" },
+          h("label", { for: id },
+            h("input", { type: "checkbox", id, name: categoria, value: item.id }),
+            h("span", {}, item.nome)),
+          iconeInfo(item)));
+      }
+      const outroTexto = h("textarea", {
+        id: `${categoria}-outro-texto`, name: `${categoria}-outro-texto`, maxlength: "200",
+        placeholder: "Descreva como você se identifica", "aria-label": `Outro: descreva (${categoria})`,
+      });
+      const outroMarcado = lista.querySelector(`#${categoria}-outro`);
+      outroMarcado.setAttribute("aria-controls", outroTexto.id);
+      outroMarcado.addEventListener("change", () => {
+        outroTexto.classList.toggle("visivel", outroMarcado.checked);
+        outroTexto.removeAttribute("aria-invalid");
+        if (outroMarcado.checked) outroTexto.focus();
+      });
+      fieldset.append(lista, outroTexto);
+    }
+
+    /** Perto das bordas, o balão se alinha ao ícone para não sair da tela. */
+    function posicionarDica(ev) {
+      const icone = ev.target.closest(".info");
+      if (!icone) return;
+      const x = icone.getBoundingClientRect().left + icone.offsetWidth / 2;
+      const metade = Math.min(260, window.innerWidth - 32) / 2;
+      icone.classList.toggle("dica-a-direita", x - metade < 16);
+      icone.classList.toggle("dica-a-esquerda", x + metade > window.innerWidth - 16);
+    }
+
+    /** { orientacao: [...], genero: [...], biologica: [...] } com o que está marcado. */
+    function coletar(form) {
+      const resultado = {};
+      const erros = [];
+      for (const categoria of Object.keys(OPCOES)) {
+        resultado[categoria] = [];
+        for (const caixa of form.querySelectorAll(`input[name="${categoria}"]:checked`)) {
+          if (caixa.value !== OUTRO.id) {
+            const item = OPCOES[categoria].find((o) => o.id === caixa.value);
+            resultado[categoria].push({ id: item.id, nome: item.nome });
+            continue;
+          }
+          const campo = form.querySelector(`#${categoria}-outro-texto`);
+          const texto = campo.value.trim();
+          if (texto.length < MINIMO_OUTRO) {
+            campo.setAttribute("aria-invalid", "true");
+            erros.push(campo);
+          } else {
+            resultado[categoria].push({ id: OUTRO.id, nome: "Outro", texto });
+          }
+        }
+      }
+      return { resultado, erros };
+    }
+
+    const form = document.getElementById("formulario");
+    form.querySelectorAll("fieldset[data-categoria]").forEach(renderizarCategoria);
+    form.addEventListener("mouseover", posicionarDica);
+    form.addEventListener("focusin", posicionarDica);
+
+    form.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const { resultado, erros } = coletar(form);
+      if (erros.length) {
+        alert(`Em "Outro", descreva com pelo menos ${MINIMO_OUTRO} caracteres.`);
+        erros[0].focus();
+        return; // envio bloqueado
+      }
+      console.log(resultado);
+
+      // Integração com a API (quando a rota existir):
+      // await fetch("/api/perfil/identidade", {
+      //   method: "PUT",
+      //   credentials: "same-origin",
+      //   headers: { "Content-Type": "application/json", "X-CSRF": "1" },
+      //   body: JSON.stringify(resultado),
+      // });
+    });
+  </script>
+</body>
+</html>
