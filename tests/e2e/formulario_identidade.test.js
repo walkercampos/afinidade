@@ -36,7 +36,7 @@ test("renderiza as três categorias a partir de OPCOES, com 'Outro' por último"
     assert.ok(await pagina.isHidden(`#${categoria}-outro-texto`));
   }
   assert.deepEqual(await pagina.locator("fieldset h2").allTextContents(), [
-    "Orientação sexual e romântica", "Identidade de gênero", "Características biológicas e de expressão",
+    "Orientação sexual", "Identidade de gênero", "Características biológicas e de expressão",
   ]);
   // A label é clicável: clicar no nome marca a caixa
   await pagina.click("label[for=genero-queer]");
