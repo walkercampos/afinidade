@@ -189,3 +189,28 @@ def test_encontro_prazos_e_exclusao(conexao_entre, db):
     # Se quem marcou sai, o encontro vai junto
     assert a.delete("/api/conta").status_code == 204
     assert db.fetchval("SELECT count(*) FROM encontros WHERE id = $1", encontro) == 0
+
+
+def test_indice_da_descoberta_por_atividade(client, db):
+    """0011: a descoberta percorre os perfis visíveis já na ordem de atividade (custo fixo)."""
+    definicao = db.fetchval("SELECT indexdef FROM pg_indexes WHERE indexname = 'perfis_ativos_idx'")
+    assert definicao is not None
+    assert "(ativo_em DESC, conta_id DESC)" in definicao and "WHERE visivel" in definicao
+
+
+def test_pool_sempre_planeja_sob_medida(client):
+    """Regressão (teste de carga): com plano genérico a descoberta ignorava o índice e ficava
+    ~9x mais lenta a partir da 6ª busca em cada conexão."""
+    import asyncio
+
+    from app.db import criar_pool
+    from tests.conftest import URL
+
+    async def ver():
+        pool = await criar_pool(URL)
+        try:
+            return await pool.fetchval("SHOW plan_cache_mode")
+        finally:
+            await pool.close()
+
+    assert asyncio.run(ver()) == "force_custom_plan"

@@ -9,3 +9,7 @@ venv/
 node_modules/
 emails-dev/
 .DS_Store
+
+# Teste de carga: tokens de sessão gerados localmente e resultados brutos
+carga/.tokens.json
+carga/resultados/

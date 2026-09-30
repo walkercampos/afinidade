@@ -18,12 +18,30 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
 - Regra de testes: tudo que é novo entra com teste unitário e uma sessão de teste exploratório
   registrada em `docs/testes-exploratorios/` (método, heurísticas do projeto e modelo).
 - 22 testes unitários da lógica do formulário de identidade, rodando no Node sem navegador.
+- Teste de carga (`carga/`): semeador de contas só para bancos `*_carga`, cenário "pessoa online"
+  (WebSocket aberto + uma ação a cada ~30 s) em k6 e num gerador leve em Node, metas de latência e
+  erro, e relatório em `docs/carga/`. Resultado: 10 mil online passam em todas as metas numa
+  máquina de 4 vCPU; 5 mil derrubavam a versão anterior.
+- Avisos em tempo real funcionam com vários workers e réplicas: cada processo publica e ouve
+  pelo PostgreSQL (LISTEN/NOTIFY, só ids, com conexões próprias fora do pool das requisições),
+  reconecta sozinho e segue entregando localmente se o banco cair. "Sair de todos os
+  dispositivos" também fecha canais em outros processos.
 
 ### Corrigido
 - Formulário de identidade: o mínimo de 3 caracteres do "Outro" podia ser burlado com caracteres
   invisíveis (`a` + espaço de largura zero + `b`) ou com emojis (`🙂🙂` contava 4). Agora conta só o
   que se vê, e o texto enviado sai sem invisíveis.
 - Formulário de identidade: com zoom de 200% no celular, nomes longos criavam rolagem lateral.
+- Descoberta com custo fixo por busca: a nota é calculada só para os 1.000 perfis elegíveis mais
+  ativos (todos os filtros valem antes do corte), com índice novo por atividade (migração 0011).
+- Conexões do banco sempre com plano sob medida: com o plano genérico do PostgreSQL, a
+  descoberta ignorava o índice a partir da 6ª busca em cada conexão (61 ms em vez de 7 ms).
+- Com mais de um worker, o aviso de mensagem nova só chegava a quem estivesse no mesmo processo
+  (medido: ~40% dos avisos).
+- Ler uma conversa e listar as conversas liam a tabela inteira de mensagens (o custo crescia com
+  o total de mensagens do app): condição reescrita para o índice do par e índices por remetente e
+  destinatário (migração 0012). 6,3 ms → 0,055 ms e 4,9 ms → 0,32 ms.
+- WebSocket sem compressão por mensagem: 77 KB → 43 KB de memória por conexão.
 
 ## [0.5.0] - 2026-09-29
 

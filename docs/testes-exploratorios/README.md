@@ -40,3 +40,4 @@ Use as que fazem sentido para o que mudou; não precisa passar por todas.
 | Data | Tema | Achados | Virou teste |
 |---|---|---|---|
 | 2026-09-30 | [Formulário de identidade](2026-09-30-formulario-identidade.md) | 3 bugs, 2 observações | 22 unitários, 2 regressões no navegador |
+| 2026-09-30 | [Carga e tempo real](2026-09-30-carga-e-tempo-real.md) | 7 bugs (no teste de carga), 1 observação | regressões em 7 arquivos de teste |

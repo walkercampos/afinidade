@@ -94,5 +94,11 @@ cookie do site, a origem é conferida (contra sequestro do canal por outro site)
 60 s; sair ou excluir a conta derruba o canal na hora. Limite de 5 aparelhos por conta. Com o canal
 aberto, a busca periódica da conversa cai de 3 s para 20 s (reserva).
 
-Limitação: quem está conectado fica na memória do processo. Com várias réplicas, troque por
-LISTEN/NOTIFY do PostgreSQL; até lá, a busca periódica garante que nada se perde.
+Vários workers ou réplicas: cada processo guarda só os canais abertos nele e também publica o
+aviso no PostgreSQL (`LISTEN/NOTIFY`, canal `afinidade_avisos`, só ids e o tipo). Todo processo
+escuta e entrega aos seus canais; "sair de todos os dispositivos" também atravessa processos. Se
+o banco cair, cada processo segue entregando localmente, reconecta sozinho, e a busca periódica
+cobre o intervalo. Medido no [teste de carga](carga/README.md).
+
+Limitação: o limite de 5 aparelhos por conta é contado por processo (com 4 workers, até 20
+canais). Em produção roda 1 worker; ao escalar para várias instâncias, conte no banco.

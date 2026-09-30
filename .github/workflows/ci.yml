@@ -53,8 +53,8 @@ jobs:
         run: ruff check --output-format=github .
       - name: Formatação
         run: ruff format --check .
-      - name: Sintaxe do JavaScript do front-end
-        run: for f in $(find static/js -name '*.js'); do node --check "$f"; done
+      - name: Sintaxe do JavaScript (front-end e teste de carga)
+        run: for f in $(find static/js carga -name '*.js' -o -name '*.mjs'); do node --check "$f"; done
       - name: Testes unitários do front-end (node --test, sem dependências)
         run: npm test
 
