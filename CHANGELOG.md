@@ -19,6 +19,11 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
   claro e escuro. Mesma API, mesmo cookie e mesma CSP; modo demonstração (`npm run demo`) com
   dados de exemplo para trabalhar sem o back-end. Testes unitários, 12 fluxos no navegador e um
   fluxo ligado à API real no novo job `interface` do CI; o teste de contrato cobre os dois fronts.
+- Massa de teste para desenvolvimento (`python -m carga.massa 200 --curtir seu_apelido`): pessoas
+  com apelido, bio, gênero, busca, interesses e cidade sorteados, termos e idade em dia, curtidas
+  entre si e, opcionalmente, curtindo a sua conta. Só roda fora de produção e em banco local; rodar
+  de novo recria só as contas `massa_*`. O modo demonstração da nova interface também passa a ter
+  200 perfis, paginados de 20 em 20 como a API.
 - Protótipo do formulário de identidade (orientação, gênero e características), autocontido em
   `prototipos/formulario-identidade/index.html`, no sistema visual do app, com testes no navegador.
 - Regra de testes: tudo que é novo entra com teste unitário e uma sessão de teste exploratório

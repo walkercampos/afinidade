@@ -69,7 +69,7 @@ def test_preferencias_modo_discreto(pessoa, db):
 
 @pytest.mark.parametrize("pagina", ["termos.html", "privacidade.html"])
 def test_paginas_legais_honestas_e_na_versao_atual(pagina):
-    texto = (ESTATICO / pagina).read_text()
+    texto = (ESTATICO / pagina).read_text(encoding="utf-8")  # o padrão do Windows não é UTF-8
     assert f'data-versao="{termos.VERSAO_ATUAL}"' in texto
     minusculo = texto.lower()
     # Regras do plano: nunca PROMETER anonimato total nem criptografia de ponta a ponta. Citar

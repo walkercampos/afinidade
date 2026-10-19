@@ -108,6 +108,28 @@ test("descobrir: pular e bloquear tiram o perfil da fila", async () => {
   await contexto.close();
 });
 
+test("descobrir: passa de uma página de 20 e continua mostrando gente da massa", async () => {
+  const { pagina, erros, contexto } = await novaPagina();
+  await entrar(pagina);
+  const vistos = [];
+  for (let i = 0; i < 25; i++) {
+    // espera a animação do cartão anterior terminar (por um instante há dois no topo)
+    await pagina.waitForFunction(() => document.querySelectorAll("[data-topo]").length === 1);
+    const atual = await pagina.locator("[data-topo]").getAttribute("data-perfil");
+    vistos.push(atual);
+    await pagina.getByRole("button", { name: "Pular" }).click();
+    await pagina.waitForFunction(
+      (anterior) => [...document.querySelectorAll("[data-topo]")].at(-1)?.getAttribute("data-perfil") !== anterior,
+      atual,
+    );
+  }
+  assert.equal(new Set(vistos).size, 25, "cada cartão é um perfil diferente (a próxima página não repete)");
+  await pagina.locator("[data-topo] article").last().waitFor(); // ainda há cartões depois da 1ª página
+  assert.equal(await pagina.getByText("Você viu todo mundo").count(), 0);
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
 test("conexões e chat: não lidas, prazo combinado e apagar as minhas", async () => {
   const { pagina, erros, contexto } = await novaPagina();
   await entrar(pagina);

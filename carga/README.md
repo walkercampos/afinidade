@@ -57,6 +57,20 @@ Resultados em `carga/resultados/` (fora do git): resumo de cada processo do k6
 
 Para um teste rápido: `USUARIOS=500 PROCESSOS=1 carga/rodar.sh -e SUBIDA=20s -e PICO=1m`.
 
+## Massa de teste para desenvolvimento
+
+Para usar o app localmente com gente na descoberta (não é teste de carga):
+
+```bash
+set -a; . ./.env; set +a          # DATABASE_URL do banco local (o do docker compose)
+AMBIENTE=dev python -m carga.massa 200 --curtir seu_apelido
+```
+
+Cria 200 pessoas variadas (apelido, bio, gênero, quem busca, interesses, cidade, atividade) com
+termos e idade em dia. Elas se curtem entre si e, com `--curtir`, cerca de 40% já curtiu a sua
+conta. Recusa produção e qualquer banco que não seja local; rodar de novo recria só as contas
+`massa_*`.
+
 ## Segurança
 
 - `carga/semear.py` só roda com `AMBIENTE` diferente de produção **e** num banco cujo nome

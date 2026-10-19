@@ -247,7 +247,7 @@ export function TelaDescobrir() {
             {fila.slice(0, 2).reverse().map((c, i, lista) => {
               const noTopo = i === lista.length - 1;
               return (
-                <div key={c.perfil.id} className="absolute inset-0" data-topo={noTopo ? "" : undefined}>
+                <div key={c.perfil.id} className="absolute inset-0" data-topo={noTopo ? "" : undefined} data-perfil={c.perfil.id}>
                   <CartaoCandidato c={c} catalogo={catalogo} noTopo={noTopo} aoDecidir={decidir} aoMenu={() => setMenu(true)} />
                 </div>
               );

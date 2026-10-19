@@ -29,7 +29,8 @@ async function codigoPara(email) {
   for (let i = 0; i < 50; i++) {
     for (const a of readdirSync(EMAILS).sort().reverse()) {
       const texto = readFileSync(join(EMAILS, a), "utf8");
-      if (texto.startsWith(`Para: ${email}\n`)) return texto.match(/código de acesso é: (\d{6})/)[1];
+      // \r\n no Windows, \n no Linux
+      if (texto.split(/\r?\n/)[0] === `Para: ${email}`) return texto.match(/código de acesso é: (\d{6})/)[1];
     }
     await new Promise((ok) => setTimeout(ok, 100));
   }
@@ -100,7 +101,7 @@ test("cadastro, conexão, chat em tempo real e pânico com a API real", { skip: 
   await mar.pagina.getByLabel("Mensagem", { exact: true }).fill("Oi! <b>sem html</b>");
   await mar.pagina.getByRole("button", { name: "Enviar" }).click();
   await leo.pagina.goto(`${BASE}/#/conexoes`);
-  await leo.pagina.getByRole("button", { name: new RegExp(`mar_${sufixo}`) }).click();
+  await leo.pagina.getByRole("listitem").filter({ hasText: `mar_${sufixo}` }).getByRole("button").click();
   await leo.pagina.getByText("Oi! <b>sem html</b>").waitFor();
   assert.equal(await leo.pagina.locator("main li b").count(), 0);
   await leo.pagina.getByText(/some em/).first().waitFor();

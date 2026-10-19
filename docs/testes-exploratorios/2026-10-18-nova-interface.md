@@ -32,6 +32,9 @@
 | 5 | bug | Campos de data do encontro cortados em 390 px | Data e hora inteiras | corrigido: um campo por linha no celular |
 | 6 | observação | Categorias de interesses vêm do banco como slug (`restricao`, `sensacao`) | Nome com acento | corrigido: `nomeDaCategoria` |
 | 7 | observação | Digitar no meio da animação de troca de aba vai para o formulário que está saindo | — | aceito: a troca leva 0,18 s, rápido demais para uma pessoa; os testes esperam a troca |
+| 8 | bug (teste) | Com a API real, a tela de Conexões tem a pessoa duas vezes (avatar e conversa) e o teste não sabia em qual tocar | Teste toca na conversa | corrigido no teste |
+| 9 | observação | Os e-mails de desenvolvimento saem com `\r\n` no Windows | Leitor aceita os dois | corrigido no teste |
+| 10 | observação | Com só 4 perfis, o modo demonstração não mostrava a paginação da descoberta | 200 perfis, de 20 em 20 | corrigido: massa sorteada no modo demo e `carga/massa.py` para o banco local |
 
 ## Viraram teste
 
@@ -41,6 +44,9 @@
 - `web/tests/e2e/api.test.js`: cadastro, idade, conexão, chat em tempo real e pânico com a API
   de verdade (roda no job `interface` do CI).
 - `tests/test_contrato_front.py`: agora confere também as chamadas de `web/src`.
+- `web/tests/e2e/demo.test.js`: passa de uma página de 20 e os 25 cartões são perfis diferentes.
+- `tests/test_unit_massa.py` e `tests/test_massa.py`: a massa nunca toca produção nem banco remoto,
+  respeita as regras do banco, aparece na descoberta e curtir de volta vira conexão.
 
 ## Ideias para a próxima sessão
 

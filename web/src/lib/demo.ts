@@ -67,6 +67,62 @@ const pessoas: (PerfilPublico & { fotos: Foto[]; compat: Candidato["compatibilid
   },
 ];
 
+// ---------- massa: mais 196 perfis sorteados (sempre os mesmos), para a descoberta ter volume ----------
+export const TOTAL_DEMO = 200;
+
+function sorteador(semente: number) {
+  let s = semente >>> 0;
+  return () => { // mulberry32: rápido e determinístico
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const APELIDOS = [
+  "Ana", "Bia", "Cadu", "Dani", "Duda", "Edu", "Fabi", "Gabi", "Gui", "Helô", "Igor", "Isa", "Jader", "Juju", "Kaká",
+  "Lu", "Malu", "Mel", "Nanda", "Nico", "Pati", "Pedro", "Rê", "Rick", "Sam", "Sol", "Tati", "Téo", "Thi", "Val",
+  "Vic", "Yuri", "Zé", "Alê", "Bruno", "Caio", "Carol", "Clara", "Davi", "Elis", "Flor", "Hugo", "Ivy", "Kim", "Lara",
+  "Lipe", "Manu", "Noah", "Otto", "Sasha", "Tom", "Will", "Yas", "Zoe", "Ariel", "Biel", "Cris",
+];
+const FRASES = [
+  "Gosto de conversa boa antes de qualquer coisa.", "Discrição e respeito em primeiro lugar.", "Curioso(a) e sem pressa.",
+  "Combinados claros, sem joguinho.", "Noturno(a), meio artista, meio nerd.", "Explorando com calma o que me faz bem.",
+  "Café coado e vinil.", "Trilha no fim de semana.", "Cozinho bem, juro.", "Viagens de última hora.",
+  "Séries até tarde.", "Fotografia analógica.", "Me chama!", "Respondo com calma.",
+];
+const CORES = ["#f43f5e", "#7c3aed", "#06b6d4", "#f59e0b", "#10b981", "#e11d48", "#8b5cf6", "#0ea5e9", "#ec4899"];
+
+{
+  const sorte = sorteador(2026);
+  const escolher = <T,>(lista: T[]) => lista[Math.floor(sorte() * lista.length)];
+  const slugsTags = tags.map((t) => t.slug);
+  const slugsGeneros = generos.map((g) => g.slug);
+  for (let i = pessoas.length; i < TOTAL_DEMO; i++) {
+    const genero = escolher(slugsGeneros);
+    const embaralhadas = [...slugsTags].sort(() => sorte() - 0.5);
+    const quero = embaralhadas.slice(0, 2 + Math.floor(sorte() * 3));
+    const curioso = embaralhadas.slice(quero.length, quero.length + 1 + Math.floor(sorte() * 2));
+    const comuns = [...quero, ...curioso].filter(() => sorte() < 0.4).slice(0, 4);
+    const mutuo = 20 + Math.floor(sorte() * 55); // abaixo dos perfis feitos à mão, que ficam no topo
+    const temFoto = sorte() < 0.75;
+    pessoas.push({
+      id: `p${i}`,
+      nome_exibicao: genero === "casal" ? `${escolher(APELIDOS)} & ${escolher(APELIDOS)}` : escolher(APELIDOS),
+      genero,
+      bio: sorte() < 0.85 ? [escolher(FRASES), escolher(FRASES)].filter((f, j, a) => a.indexOf(f) === j).join(" ") : null,
+      quero, curioso,
+      fotos: temFoto ? [{ id: `f-p${i}`, hash: "x", nitida: sorte() < 0.3, url: imagem(escolher(CORES), escolher(CORES)) }] : [],
+      compat: {
+        match_valido: true, score_porcentagem: mutuo + 5, score_mutuo: mutuo, similaridade: Math.floor(sorte() * 90),
+        tags_em_comum: comuns, tags_mesmo_nivel: comuns.slice(0, 2),
+        distancia_km: sorte() < 0.15 ? null : escolher([5, 10, 15, 25, 40, 75, 150, 300]), motivo: "",
+      },
+    });
+  }
+}
+
 const publico = ({ id, nome_exibicao, bio, genero, quero, curioso }: PerfilPublico): PerfilPublico =>
   ({ id, nome_exibicao, bio, genero, quero, curioso });
 
@@ -203,11 +259,17 @@ export async function responderDemo<T>(metodo: string, caminhoCompleto: string, 
   // ----- descoberta -----
   if (caminho === "/descobrir" || caminho === "/afins") {
     const ordem = params.get("ordem");
-    let lista = pessoas.filter((x) => !vistos.has(x.id));
-    if (params.get("com_foto")) lista = lista.filter((x) => x.fotos.length);
-    if (ordem === "afinidade") lista = [...lista].sort((a, b) => b.compat.similaridade - a.compat.similaridade);
-    if (ordem === "recentes") lista = [...lista].reverse();
-    return r(lista.map((x) => ({ perfil: publico(x), compatibilidade: x.compat, fotos: x.fotos })));
+    let lista = params.get("com_foto") ? pessoas.filter((x) => x.fotos.length) : [...pessoas];
+    if (ordem === "afinidade") lista.sort((a, b) => b.compat.similaridade - a.compat.similaridade);
+    if (ordem === "recentes") lista.reverse();
+    // Páginas de `limite`; o cursor (X-Proximo-Cursor) é o último perfil entregue, como na API:
+    // quem foi curtido ou bloqueado no meio do caminho não faz a próxima página pular ninguém.
+    const limite = Number(params.get("limite") ?? 20);
+    const cursor = params.get("cursor");
+    lista = lista.slice(cursor ? lista.findIndex((x) => x.id === cursor) + 1 : 0).filter((x) => !vistos.has(x.id));
+    const pagina = lista.slice(0, limite);
+    const proximo = lista.length > limite ? { "X-Proximo-Cursor": pagina[pagina.length - 1].id } : undefined;
+    return r(pagina.map((x) => ({ perfil: publico(x), compatibilidade: x.compat, fotos: x.fotos })), proximo);
   }
   if ((p = m(/^\/perfis\/([^/]+)\/curtir$/))) {
     vistos.add(p[1]);

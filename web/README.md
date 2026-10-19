@@ -12,10 +12,15 @@ a sessão continua num cookie HttpOnly com o header anti-CSRF, e nada é carrega
 ```bash
 cd web
 npm ci
-npm run demo        # http://localhost:5173 com dados de exemplo, sem back-end (código: 123456)
+npm run demo        # http://localhost:5173 com 200 perfis de exemplo, sem back-end (código: 123456)
 npm run dev         # http://localhost:5173 ligado à API local (make rodar), via proxy em /api
+API_URL=http://localhost:8001 npm run dev   # API em outra porta
 npm run build       # gera web/dist
 ```
+
+Para ter gente na descoberta com a API local, crie a massa de teste (só em banco local, fora de
+produção): `python -m carga.massa 200 --curtir seu_apelido`. Com `--curtir`, parte dessas pessoas
+já curtiu você, então curtir de volta vira conexão na hora.
 
 No `npm run dev`, inclua `http://localhost:5173` em `WEBAUTHN_ORIGENS` do `.env` para a
 biometria e o canal em tempo real aceitarem a origem.
