@@ -1,0 +1,33 @@
+{
+  "name": "afinidade-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Nova interface do Afinidade em React. Conversa com a mesma API (/api) do back-end.",
+  "scripts": {
+    "dev": "vite",
+    "demo": "vite --mode demo",
+    "build": "tsc -p . && vite build",
+    "build:demo": "tsc -p . && vite build --mode demo --outDir dist-demo",
+    "preview": "vite preview --port 4173 --strictPort",
+    "preview:demo": "vite preview --outDir dist-demo --port 4173 --strictPort",
+    "test": "node --test \"tests/*.test.ts\"",
+    "e2e:demo": "node --test --test-concurrency=1 tests/e2e/demo.test.js",
+    "e2e:api": "node --test --test-concurrency=1 tests/e2e/api.test.js"
+  },
+  "dependencies": {
+    "lucide-react": "1.59.0",
+    "motion": "14.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vite": "8.3.4"
+  }
+}

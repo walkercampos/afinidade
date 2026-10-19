@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+/* Tokens do sistema visual (docs/design/sistema-visual.md). O tema segue o aparelho; em Conta
+   dá para fixar claro ou escuro (data-tema no <html>). */
+:root {
+  --fundo: #f6f6f8;
+  --superficie: #ffffff;
+  --superficie-2: #f1f1f4;
+  --borda: #e6e6eb;
+  --texto: #17171c;
+  --suave: #6b6b76;
+  --acento: #e11d48;
+  --acento-texto: #be123c;
+  --acento-suave: #ffe4e9;
+  --violeta: #7c3aed;
+  --violeta-suave: #ede9fe;
+  --ok: #059669;
+  --ok-suave: #d1fae5;
+  --perigo: #dc2626;
+  --vidro: rgb(255 255 255 / 0.72);
+  --sombra: 0 1px 2px rgb(16 16 24 / 0.04), 0 8px 24px rgb(16 16 24 / 0.06);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --fundo: #0b0b0f;
+    --superficie: #16161c;
+    --superficie-2: #202029;
+    --borda: #2a2a35;
+    --texto: #f4f4f6;
+    --suave: #a1a1ad;
+    --acento-texto: #fda4b4;
+    --acento-suave: #3b0d1a;
+    --violeta: #a78bfa;
+    --violeta-suave: #2a1f47;
+    --ok: #34d399;
+    --ok-suave: #0f2e24;
+    --vidro: rgb(22 22 28 / 0.72);
+    --sombra: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.35);
+    color-scheme: dark;
+  }
+}
+
+:root[data-tema="escuro"] {
+  --fundo: #0b0b0f;
+  --superficie: #16161c;
+  --superficie-2: #202029;
+  --borda: #2a2a35;
+  --texto: #f4f4f6;
+  --suave: #a1a1ad;
+  --acento-texto: #fda4b4;
+  --acento-suave: #3b0d1a;
+  --violeta: #a78bfa;
+  --violeta-suave: #2a1f47;
+  --ok: #34d399;
+  --ok-suave: #0f2e24;
+  --vidro: rgb(22 22 28 / 0.72);
+  --sombra: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.35);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-fundo: var(--fundo);
+  --color-superficie: var(--superficie);
+  --color-superficie-2: var(--superficie-2);
+  --color-borda: var(--borda);
+  --color-texto: var(--texto);
+  --color-suave: var(--suave);
+  --color-acento: var(--acento);
+  --color-acento-texto: var(--acento-texto);
+  --color-acento-suave: var(--acento-suave);
+  --color-violeta: var(--violeta);
+  --color-violeta-suave: var(--violeta-suave);
+  --color-ok: var(--ok);
+  --color-ok-suave: var(--ok-suave);
+  --color-perigo: var(--perigo);
+  --color-vidro: var(--vidro);
+  --shadow-cartao: var(--sombra);
+  --radius-cartao: 22px;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-fundo text-texto font-sans antialiased;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+  :focus-visible {
+    outline: 2px solid var(--acento);
+    outline-offset: 2px;
+  }
+  input, textarea, select, button {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+@layer utilities {
+  .gradiente-marca {
+    background-image: linear-gradient(135deg, #e11d48 0%, #c026d3 55%, #8b5cf6 100%);
+  }
+  .texto-gradiente {
+    background-image: linear-gradient(135deg, #e11d48 0%, #c026d3 55%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .vidro {
+    background: var(--vidro);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+  }
+  .seguro-baixo {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+  .sem-barra::-webkit-scrollbar { display: none; }
+  .sem-barra { scrollbar-width: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

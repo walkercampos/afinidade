@@ -8,10 +8,14 @@ sem build: em vez de gerar o cliente, conferimos que o front não chama rotas qu
 import re
 from pathlib import Path
 
-JS = Path(__file__).resolve().parent.parent / "static" / "js"
+import pytest
 
-# api("/caminho", { metodo: "POST" ... }) · fetch(`/api/caminho...`) · new WebSocket(`.../api/ws`)
-_API = re.compile(r"""api\(\s*[`"'](/[^`"']*)[`"']\s*(?:,\s*\{([^}]*)\})?""")
+RAIZ = Path(__file__).resolve().parent.parent
+# Os dois fronts: o atual (static/, sem build) e a nova interface em React (web/src).
+FRONTS = {"static": (RAIZ / "static" / "js", ("*.js",)), "web": (RAIZ / "web" / "src", ("*.ts", "*.tsx"))}
+
+# api("/caminho", { metodo: "POST" ... }) · api<Tipo>(...) · fetch(`/api/caminho...`) · new WebSocket(`.../api/ws`)
+_API = re.compile(r"""\bapi(?:Completa)?(?:<[^>(]*>)?\(\s*[`"'](/[^`"']*)[`"']\s*(?:,\s*\{([^}]*)\})?""")
 _FETCH = re.compile(r"""fetch\(\s*[`"']/api(/[^`"'?]*)[^`"']*[`"']\s*(?:,\s*\{([^}]*)\})?""")
 
 
@@ -20,10 +24,13 @@ def _metodo(opcoes: str | None, chave: str) -> str:
     return (m.group(1) if m else "GET").upper()
 
 
-def _chamadas_do_front() -> set[tuple[str, str]]:
+def _chamadas_do_front(front: str) -> set[tuple[str, str]]:
+    pasta, padroes = FRONTS[front]
     chamadas = set()
-    for arquivo in JS.rglob("*.js"):
-        codigo = arquivo.read_text()
+    for arquivo in (a for padrao in padroes for a in pasta.rglob(padrao)):
+        if arquivo.name == "demo.ts":  # dados de exemplo: imita a API, não a chama
+            continue
+        codigo = arquivo.read_text(encoding="utf-8")
         for caminho, opcoes in _API.findall(codigo):
             chamadas.add((_metodo(opcoes, "metodo"), caminho))
         for caminho, opcoes in _FETCH.findall(codigo):
@@ -35,13 +42,14 @@ def _como_regex(caminho_openapi: str) -> re.Pattern:
     return re.compile("^" + re.sub(r"\\\{[^}]+\\\}", "[^/]+", re.escape(caminho_openapi)) + "$")
 
 
-def test_toda_chamada_do_front_existe_na_api(client):
+@pytest.mark.parametrize("front", sorted(FRONTS))
+def test_toda_chamada_do_front_existe_na_api(client, front):
     rotas = [
         (metodo.upper(), _como_regex(caminho.removeprefix("/api")))
         for caminho, metodos in client.app.openapi()["paths"].items()
         for metodo in metodos
     ]
-    chamadas = _chamadas_do_front()
+    chamadas = _chamadas_do_front(front)
     assert len(chamadas) > 30, "o leitor de chamadas parou de encontrar o código do front"
 
     def normalizar(caminho: str) -> str:

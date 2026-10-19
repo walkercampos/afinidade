@@ -13,6 +13,12 @@ Como lançar uma versão: veja [docs/operacao.md](docs/operacao.md#lançar-uma-v
 ## [Não lançado]
 
 ### Adicionado
+- Nova interface em React + TypeScript + Tailwind (`web/`), com todas as telas do app: descoberta
+  em cartões que se arrastam, tela de "É uma conexão", chat em balões com o tempo até cada
+  mensagem sumir, perfil com interesses por categoria, encontros, conta e moderação, nos temas
+  claro e escuro. Mesma API, mesmo cookie e mesma CSP; modo demonstração (`npm run demo`) com
+  dados de exemplo para trabalhar sem o back-end. Testes unitários, 12 fluxos no navegador e um
+  fluxo ligado à API real no novo job `interface` do CI; o teste de contrato cobre os dois fronts.
 - Protótipo do formulário de identidade (orientação, gênero e características), autocontido em
   `prototipos/formulario-identidade/index.html`, no sistema visual do app, com testes no navegador.
 - Regra de testes: tudo que é novo entra com teste unitário e uma sessão de teste exploratório

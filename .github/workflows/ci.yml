@@ -150,8 +150,79 @@ jobs:
         if: failure()
         run: cat uvicorn.log
 
+  # Nova interface (web/, React): tipos, build, testes unitários e no navegador, primeiro no
+  # modo demonstração (sem back-end) e depois ligada à API de verdade.
+  interface:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+      - run: pip install -r requirements.txt
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm ci
+        working-directory: web
+      - name: Tipos e build
+        working-directory: web
+        run: npm run build && npm run build:demo
+      - name: Testes unitários
+        working-directory: web
+        run: npm test
+      - name: Navegador, modo demonstração (todas as telas, 360 px, temas, pânico)
+        working-directory: web
+        run: |
+          nohup npm run preview:demo > preview-demo.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://localhost:4173/ > /dev/null && break; sleep 1; done
+          WEB_URL=http://localhost:4173 npm run e2e:demo
+      - name: Subir a API
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/e2e
+          AMBIENTE: dev
+          LIMITE_AUTH_POR_MIN: "1000"
+          WEBAUTHN_RP_ID: localhost
+          WEBAUTHN_ORIGENS: http://localhost:4174   # a interface (abaixo) responde nesta porta
+          EMAIL_PROVEDOR: arquivo
+          EMAIL_PASTA: /tmp/emails-web
+          IDADE_OBRIGATORIA: "true"
+          IDADE_PROVEDOR: simulado
+        run: |
+          export JWT_SECRET="$(openssl rand -hex 32)" CHAVE_MENSAGENS="$(openssl rand -hex 32)" EMAIL_PEPPER="$(openssl rand -hex 32)" CHAVE_EMAIL="$(openssl rand -hex 32)"
+          nohup uvicorn app.main:app --port 8000 > uvicorn.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://localhost:8000/api/saude && break; sleep 1; done
+      - name: Navegador, ligada à API (cadastro, idade, conexão, chat em tempo real, pânico)
+        working-directory: web
+        run: |
+          nohup npx vite preview --port 4174 --strictPort > preview.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://localhost:4174/ > /dev/null && break; sleep 1; done
+          WEB_URL=http://localhost:4174 API_EMAILS=/tmp/emails-web npm run e2e:api
+      - name: Logs (em caso de falha)
+        if: failure()
+        run: cat uvicorn.log web/preview*.log || true
+
   imagem:
-    needs: [lint, testes, auditoria, navegador]
+    needs: [lint, testes, auditoria, navegador, interface]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
